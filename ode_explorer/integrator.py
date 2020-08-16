@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 from absl import logging
 from tqdm import tqdm
@@ -15,7 +16,8 @@ class Integrator:
     def __init__(self,
                  step_func: StepFunction,
                  pre_step_hook: Callable = None,
-                 post_step_callbacks: List[Callable] = None):
+                 post_step_callbacks: List[Callable] = None,
+                 log_dir: Text = None):
 
         # step function used to integrate a model
         self.step_func = step_func
@@ -33,6 +35,8 @@ class Integrator:
         if post_step_callbacks is None:
             self.callbacks = []
 
+        self.log_dir = log_dir or os.getcwd()
+
     def _reset_step_counter(self):
         self._step_count = 0
 
@@ -47,7 +51,7 @@ class Integrator:
                         h: float = None,
                         num_steps: int = None,
                         reset_step_counter: bool = True,
-                        log_path: Text = None,
+                        logfile_name: Text = None,
                         **kwargs) -> None:
 
         # arg checks for time stepping
@@ -110,6 +114,8 @@ class Integrator:
 
         if self.result_data:
 
-            out_dir = log_path or "./logs"
+            outfile_name = logfile_name or "run_" + \
+                           datetime.datetime.now().strftime('%Y-%m-%d')
 
-            write_results_to_file(self.result_data, out_dir=out_dir)
+            write_results_to_file(self.result_data, out_dir=self.log_dir,
+                                  out_name=outfile_name)

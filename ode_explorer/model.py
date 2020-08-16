@@ -1,6 +1,7 @@
 
 import numpy as np
 from typing import Callable, Dict, Any, Text, List
+from utils.model_imports import import_func_from_module
 
 
 class ODEModel:
@@ -8,14 +9,30 @@ class ODEModel:
     Base class for all ODE models.
     """
     def __init__(self,
+                 module_path: Text = None,
+                 ode_fn_name: Text = None,
                  ode_fn: Callable[[float, np.ndarray, Dict[Text, Any]],
-                                  np.ndarray],
+                                  np.ndarray] = None,
                  fn_args: Dict[Text, Any] = None,
                  variable_names: List[Text] = None,
                  indep_name: Text = None,
                  ):
         # ODE function, right hand side of y' = f(t,y)
-        self.ode_fn = ode_fn
+        if not any([bool(module_path), bool(ode_fn_name),
+                    bool(ode_fn)]):
+            raise ValueError("Missing model information. Supply a right hand "
+                             "side f(t,y) either by specifying a source path "
+                             "or a callable function.")
+
+        if any([bool(module_path), bool(ode_fn_name)]) and bool(ode_fn):
+            raise ValueError("Defining a model function by a source path and "
+                             "by a callable function object are mutually "
+                             "exclusive. Please only supply one of these "
+                             "options.")
+        if bool(ode_fn):
+            self.ode_fn = ode_fn
+        else:
+            self.ode_fn = import_func_from_module(module_path, ode_fn_name)
 
         # additional arguments for the function
         self.fn_args = fn_args
@@ -34,7 +51,6 @@ class ODEModel:
             self.indep_name = indep_name
 
     def update_args(self, **kwargs):
-
         if self.fn_args:
             self.fn_args.update(kwargs)
         else:
@@ -49,13 +65,13 @@ class ODEModel:
         :return: Dict with keys as variable names and float values as state
         values at time t.
         """
+        if not len(y) == len(self.variable_names):
+            raise ValueError("Error: Variable names and ODE system size "
+                             "do not match.")
+
         if kwargs:
             self.update_args(**kwargs)
 
         ynew = self.ode_fn(t, y, **self.fn_args)
-
-        if not len(ynew) == len(self.variable_names):
-            raise ValueError("Error: Variable names and ODE system size "
-                             "do not match.")
 
         return ynew

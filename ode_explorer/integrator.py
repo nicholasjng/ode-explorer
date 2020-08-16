@@ -1,11 +1,13 @@
-import pandas as pd
 import numpy as np
+import os
+import datetime
 
 from absl import logging
 from tqdm import tqdm
 from typing import Dict, Callable, Text, Any, List
 from ode_explorer.stepfunction import StepFunction
 from ode_explorer.model import ODEModel
+from utils.data_utils import write_results_to_file
 
 
 class Integrator:
@@ -36,11 +38,8 @@ class Integrator:
     def _reset_step_counter(self):
         self._step_count = 0
 
-    def _increase_step_counter(self):
-        self._step_count += 1
-
-    def update_data(self, state_dict: Dict[Text, float]):
-        self.data.append(state_dict)
+    def add_callbacks(self, callback_list: List[Callable]):
+        self.callbacks = self.callbacks + callback_list
 
     def integrate_const(self,
                         model: ODEModel,
@@ -50,7 +49,8 @@ class Integrator:
                         h: float = None,
                         num_steps: int = None,
                         reset_step_counter: bool = True,
-                        ) -> None:
+                        log_path: Text = None,
+                        **kwargs) -> None:
 
         # arg checks for time stepping
         stepping_data = [bool(end), bool(h), bool(num_steps)]
@@ -58,6 +58,10 @@ class Integrator:
         if not start:
             raise ValueError("A float value has to be given for the "
                              "\"start\" variable.")
+
+        if end and (start > end):
+            raise ValueError("The upper integration bound has to be larger "
+                             "than the starting value.")
 
         if stepping_data.count(True) != 2:
             raise ValueError("Error: This Integrator run is mis-configured. "
@@ -72,34 +76,42 @@ class Integrator:
             end = start + h * num_steps
         # TODO: What happens if a step size controller is used?
         elif not h:
-            h = (start - end) / num_steps
-            logging.warn("No step size argument was supplied. The "
-                         "step size will be set according to the start, end "
-                         "and num_steps arguments. This can have a negative "
-                         "affect on accuracy.")
+            h = (end - start) / num_steps
+            logging.warning("No step size argument was supplied. The step "
+                            "size will be set according to the start, end "
+                            "and num_steps arguments. This can have a "
+                            "negative affect on accuracy.")
         elif not num_steps:
-            num_steps = (start - end) / h
+            num_steps = int((end - start) / h)
 
         state_dict = {**{model.indep_name: start},
                       **dict(zip(model.variable_names, y0))}
 
-        self.update_data(state_dict=state_dict)
+        self.data.append(state_dict)
 
         for i in tqdm(range(num_steps + 1)):
 
             if self._pre_step_hook:
                 self._pre_step_hook()
 
-            updated_state_dict = self.step_func.forward(model, state_dict)
+            updated_state_dict = self.step_func.forward(model, state_dict,
+                                                        h, **kwargs)
 
-            self.update_data(updated_state_dict)
+            self.data.append(updated_state_dict)
 
             # execute the registered callbacks after the step
+            # scikit-learn inspired callback signature
             for callback in self.callbacks:
-                callback(self, locals())
+                callback(self, model, locals())
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
             state_dict = updated_state_dict
 
-            self._increase_step_counter()
+            self._step_count += 1
+
+        if self.data:
+
+            out_path = log_path or "logs/"
+
+            write_results_to_file()

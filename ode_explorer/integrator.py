@@ -1,6 +1,4 @@
 import numpy as np
-import os
-import datetime
 
 from absl import logging
 from tqdm import tqdm
@@ -26,7 +24,7 @@ class Integrator:
         self._pre_step_hook = pre_step_hook
 
         # data container for the steps
-        self.data = []
+        self.result_data = []
 
         # step count, can be used to track integration runs
         self._step_count = 0
@@ -87,7 +85,7 @@ class Integrator:
         state_dict = {**{model.indep_name: start},
                       **dict(zip(model.variable_names, y0))}
 
-        self.data.append(state_dict)
+        self.result_data.append(state_dict)
 
         for i in tqdm(range(num_steps + 1)):
 
@@ -97,7 +95,7 @@ class Integrator:
             updated_state_dict = self.step_func.forward(model, state_dict,
                                                         h, **kwargs)
 
-            self.data.append(updated_state_dict)
+            self.result_data.append(updated_state_dict)
 
             # execute the registered callbacks after the step
             # scikit-learn inspired callback signature
@@ -110,8 +108,8 @@ class Integrator:
 
             self._step_count += 1
 
-        if self.data:
+        if self.result_data:
 
-            out_path = log_path or "logs/"
+            out_dir = log_path or "./logs"
 
-            write_results_to_file()
+            write_results_to_file(self.result_data, out_dir=out_dir)

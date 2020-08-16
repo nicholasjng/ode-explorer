@@ -1,7 +1,7 @@
 
 import numpy as np
 from typing import Callable, Dict, Any, Text, List
-from utils.model_imports import import_func_from_module
+from utils.import_utils import import_func_from_module
 
 
 class ODEModel:

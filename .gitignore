@@ -1,0 +1,12 @@
+*__pycache__*
+*.tar.gz
+*.zip
+*.yml
+*.yaml
+*.egg-info
+*eggs
+*.ipynb_checkpoints*
+venv
+
+notebooks/.ipynb_checkpoints
+notebooks/test_data

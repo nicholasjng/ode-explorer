@@ -7,12 +7,14 @@ class ODEModel:
     """
     Base class for all ODE models.
     """
+    # TODO: Make a function to infer the model dimension from the initial state
     def __init__(self,
                  module_path: Text = None,
                  ode_fn_name: Text = None,
                  ode_fn: Callable[[float, np.ndarray, Dict[Text, Any]],
                                   np.ndarray] = None,
                  fn_args: Dict[Text, Any] = None,
+                 ode_dimension: int = None,
                  variable_names: List[Text] = None,
                  indep_name: Text = None,
                  ):
@@ -26,8 +28,15 @@ class ODEModel:
         if any([bool(module_path), bool(ode_fn_name)]) and bool(ode_fn):
             raise ValueError("Defining a model function by a source path and "
                              "by a callable function object are mutually "
-                             "exclusive. Please only supply one of these "
+                             "exclusive. Please supply only one of these "
                              "options.")
+
+        if not any([bool(variable_names), bool(ode_dimension)]):
+            raise ValueError("Please specify information about the "
+                             "dimensionality of your ODE system, either "
+                             "by the \"ode_dimension\" or \"variable_names\" "
+                             "arguments.")
+
         if bool(ode_fn):
             self.ode_fn = ode_fn
         else:
@@ -42,7 +51,7 @@ class ODEModel:
         else:
             self.variable_names = variable_names
 
-        self.model_dim = len(variable_names)
+        self.model_dim = len(self.variable_names)
 
         if not indep_name:
             self.indep_name = "time"
@@ -55,9 +64,19 @@ class ODEModel:
         else:
             self.fn_args = kwargs
 
+    def register_equation_data(self, initial_state: Dict[Text, Any]):
+        try:
+            y = initial_state["y"]
+        except Exception as e:
+            print(e)
+            return
+
+        model_dim = len(y)
+        if not self.variable_names:
+            self.variable_names = ["y_{}".format(i) for i in range(model_dim)]
+
     def __call__(self, t: float, y: np.ndarray, **kwargs) -> np.ndarray:
         """
-
         :param t: Float, time index.
         :param y: np.ndarray, state of the ODE system at time t.
         :param kwargs: Additional keyword arguments to the ODE function.

@@ -4,10 +4,14 @@ import datetime
 from typing import List, Dict, Text
 
 
-def write_results_to_file(result_data: List[Dict[Text, float]],
-                          out_dir: Text,
-                          outfile_name: Text,
-                          **kwargs) -> None:
+def make_log_dir():
+    pass
+
+
+def write_to_file(result_data: List[Dict[Text, float]],
+                  out_dir: Text,
+                  outfile_name: Text,
+                  **kwargs) -> None:
     """
     Small wrapper to write ODE simulation results to a .csv file.
     :param result_data: Result data to be written to file.
@@ -23,7 +27,7 @@ def write_results_to_file(result_data: List[Dict[Text, float]],
     file_ext = ".csv"
 
     # convert result_list to data frame
-    # fast, construction from list with schema dict
+    # fast construction from list with schema dict
     result_df = pd.DataFrame(data=result_data)
 
     out_file = os.path.join(out_dir, outfile_name)

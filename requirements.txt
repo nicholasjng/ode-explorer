@@ -2,3 +2,6 @@ numpy~=1.19.1
 pandas>=1.0.0
 absl-py
 tqdm
+scipy
+jax
+jaxlib

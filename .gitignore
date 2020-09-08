@@ -9,6 +9,8 @@
 *eggs
 *.ipynb_checkpoints*
 venv
+**/results
+**/logs
 
 notebooks/.ipynb_checkpoints
 notebooks/test_data

@@ -254,7 +254,7 @@ class ImplicitEulerMethod(StepFunction):
 
         # this bit is important to sort the kwargs before putting them into
         # the tuple passed to root
-        model_spec = inspect.getfullargspec(model).args
+        model_spec = inspect.getfullargspec(model.ode_fn).args[2:]
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
         else:
@@ -272,7 +272,7 @@ class ImplicitEulerMethod(StepFunction):
 
 class AdamsBashforth2(StepFunction):
     """
-    Implicit Euler Method for ODE solving.
+    Adams-Bashforth Method of order 2 for ODE solving.
     """
 
     def __init__(self, startup: StepFunction):
@@ -287,8 +287,8 @@ class AdamsBashforth2(StepFunction):
         self.t_cache = np.zeros(2)
         self.f_cache = np.zeros_like(self.y_cache)
 
-        # multistep method specific variables
-        self.a_coeffs = np.array([1.0]) # unused for this special function
+        # multistep method variables
+        self.a_coeffs = np.array([1.0])  # unused for this specialized function
         self.b_coeffs = np.array([1.5, -0.5])
 
     def reset(self):
@@ -305,14 +305,16 @@ class AdamsBashforth2(StepFunction):
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        self.t_cache[:, 0], self.y_cache[:, 0] = t, y
+        self.y_cache = np.zeros((len(y), 2))
+
+        self.t_cache[0], self.y_cache[:, 0] = t, y
         startup_state = self.startup.forward(model=model, state=state,
                                              h=h, **kwargs)
 
         t1, y1 = self.get_data_from_state_dict(model=model,
                                                state=startup_state)
 
-        self.t_cache[:, 1], self.y_cache[:, 1] = t1, y1
+        self.t_cache[1], self.y_cache[:, 1] = t1, y1
 
         # fill function evaluation cache
         self.f_cache[:, 0], self.f_cache[:, 1] = model(t, y, **kwargs), \
@@ -326,23 +328,24 @@ class AdamsBashforth2(StepFunction):
                 h: float,
                 **kwargs) -> Dict[Text, float]:
 
-        # TODO: Abstract this shit into a new member function
-        t, y = self.get_data_from_state_dict(model=model, state=state)
-
-        if self.y_cache.shape[0] != len(y):
-            self.y_cache = np.zeros((len(y), 2))
-
-        # startup calculation to the multistep method,
-        # fills the y-, t- and f-caches
         if not self.ready:
+            # startup calculation to the multistep method,
+            # fills the y-, t- and f-caches
             self.perform_startup_calculation(model=model, state=state, h=h,
                                              **kwargs)
 
-            new_state = {**{model.indep_name: t + h},
+            new_state = {**{model.indep_name: self.t_cache[-1]},
                          **dict(zip(model.variable_names,
                                     self.y_cache[:, -1]))}
 
             return new_state
+
+        t, y = self.get_data_from_state_dict(model=model, state=state)
+
+        # TODO here: Decide here whether to return cached values based on
+        #  the condition t <= self.t_cache[-1]. Return the last cached value
+        #  with t < self.t_cache[i]. This is O(n), but n is small
+        #  (order of method) so what gives
 
         y_new = y + h * np.sum(self.b_coeffs * self.f_cache, axis=1)
 

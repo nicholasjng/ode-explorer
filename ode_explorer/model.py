@@ -46,22 +46,13 @@ class ODEModel:
         self.fn_args = fn_args
 
         # state variable names for DataFrame columns
-        if not variable_names:
-            # by the above checks, in this branch, ode_dim != None
-            self.variable_names = ["y_{}".format(i)
-                                   for i in range(ode_dimension)]
-        else:
-            self.variable_names = variable_names
+        self.variable_names = variable_names if variable_names else \
+            ["y_{}".format(i) for i in range(ode_dimension)]
 
-        if ode_dimension:
-            self.model_dim = ode_dimension
-        else:
-            self.model_dim = len(self.variable_names)
+        self.model_dim = ode_dimension if ode_dimension else \
+            len(self.variable_names)
 
-        if not indep_name:
-            self.indep_name = "time"
-        else:
-            self.indep_name = indep_name
+        self.indep_name = indep_name if indep_name else "time"
 
     def update_args(self, **kwargs):
         if self.fn_args:

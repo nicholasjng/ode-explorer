@@ -47,11 +47,16 @@ class ODEModel:
 
         # state variable names for DataFrame columns
         if not variable_names:
-            self.variable_names = []
+            # by the above checks, in this branch, ode_dim != None
+            self.variable_names = ["y_{}".format(i)
+                                   for i in range(ode_dimension)]
         else:
             self.variable_names = variable_names
 
-        self.model_dim = len(self.variable_names)
+        if ode_dimension:
+            self.model_dim = ode_dimension
+        else:
+            self.model_dim = len(self.variable_names)
 
         if not indep_name:
             self.indep_name = "time"
@@ -63,17 +68,6 @@ class ODEModel:
             self.fn_args.update(kwargs)
         else:
             self.fn_args = kwargs
-
-    def register_equation_data(self, initial_state: Dict[Text, Any]):
-        try:
-            y = initial_state["y"]
-        except Exception as e:
-            print(e)
-            return
-
-        model_dim = len(y)
-        if not self.variable_names:
-            self.variable_names = ["y_{}".format(i) for i in range(model_dim)]
 
     def __call__(self, t: float, y: np.ndarray, **kwargs) -> np.ndarray:
         """

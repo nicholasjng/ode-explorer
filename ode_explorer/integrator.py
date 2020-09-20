@@ -2,6 +2,7 @@ import numpy as np
 import os
 import absl
 import datetime
+import copy
 
 import logging
 
@@ -95,8 +96,7 @@ class Integrator:
                         logfile_name: Text = None,
                         verbosity: int = 0,
                         data_outfile: Text = None,
-                        flush_data_every: int = None,
-                        **kwargs) -> None:
+                        flush_data_every: int = None) -> None:
 
         # create file handler which logs even debug messages
         logfile = logfile_name or "logs.txt"
@@ -148,7 +148,9 @@ class Integrator:
         state_dict = {**{model.indep_name: start},
                       **dict(zip(model.variable_names, y0))}
 
-        self.result_data.append(state_dict)
+        # here we have to deepcopy, otherwise the initial state gets
+        # overwritten in a bad way (result_data appends a view into the dict)
+        self.result_data.append(copy.deepcopy(state_dict))
 
         self.logger.info("Starting integration.")
 
@@ -157,12 +159,11 @@ class Integrator:
             if self._pre_step_hook:
                 self._pre_step_hook()
 
-            updated_state_dict = self.step_func.forward(model, state_dict,
-                                                        h, **kwargs)
+            updated_state_dict = self.step_func.forward(model, state_dict, h)
 
             self.result_data.append(updated_state_dict)
 
-            if (i % flush_data_every) == 0:
+            if i > 0 and i % flush_data_every == 0:
                 self.write_data_to_file(data_outfile)
                 self.result_data = []
 
@@ -175,12 +176,15 @@ class Integrator:
             for metric in self.metrics:
                 metric_dict[metric.__name__] = metric(state_dict,
                                                       updated_state_dict)
+            # adding the current time stamp
+            metric_dict.update({model.indep_name:
+                                updated_state_dict[model.indep_name]})
 
-                self.metric_data.append(metric_dict)
+            self.metric_data.append(metric_dict)
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
-            state_dict = updated_state_dict
+            state_dict.update(updated_state_dict)
 
             self._step_count += 1
 

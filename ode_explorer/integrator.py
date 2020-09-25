@@ -83,8 +83,6 @@ class Integrator:
         self.logger = logging.getLogger('Integrator')
         self.logger.info('Creating an Integrator instance.')
 
-    # TODO: Substitute start, y0 -> initial_state ()
-    # or subclass Integrator and override the integrate_const method
     def integrate_const(self,
                         model: ODEModel,
                         initial_state: Dict[Text, Any],
@@ -107,6 +105,9 @@ class Integrator:
         fh.setFormatter(formatter)
         # add the handlers to the logger
         self.logger.addHandler(fh)
+
+        # initialize dimension names
+        model.initialize_dim_names(initial_state)
 
         if not flush_data_every:
             flush_data_every = num_steps + 2
@@ -197,8 +198,8 @@ class Integrator:
 
             self.write_data_to_file(data_outfile=data_outfile)
 
-            self.logger.info("Results written to file {}.".format(os.path.join(
-                self.log_dir, outfile_name)))
+            self.logger.info("Results written to file {}.".format(
+                os.path.join(self.log_dir, outfile_name)))
 
         # return self to allow daisy chaining a visualization method
         # TODO: Implement matplotlib based visualization method

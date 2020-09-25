@@ -83,12 +83,11 @@ class Integrator:
         self.logger = logging.getLogger('Integrator')
         self.logger.info('Creating an Integrator instance.')
 
-    # TODO: Substitute start, y0 -> initial_state (Dict[Text, Any])
+    # TODO: Substitute start, y0 -> initial_state ()
     # or subclass Integrator and override the integrate_const method
     def integrate_const(self,
                         model: ODEModel,
-                        start: float,
-                        y0: np.ndarray,
+                        initial_state: Dict[Text, Any],
                         end: float = None,
                         h: float = None,
                         num_steps: int = None,
@@ -114,6 +113,8 @@ class Integrator:
 
         # arg checks for time stepping
         stepping_data = [bool(end), bool(h), bool(num_steps)]
+
+        start = initial_state[model.indep_name]
 
         if not isinstance(start, float):
             raise ValueError("A float value has to be given for the "
@@ -143,13 +144,9 @@ class Integrator:
         elif not num_steps:
             num_steps = int((end - start) / h)
 
-        # TODO: Solve the dict problem with a callback converter function
-        #  that zips the np.arrays with the model dict
-        state_dict = {**{model.indep_name: start},
-                      **dict(zip(model.variable_names, y0))}
-
         # deepcopy here, otherwise the initial state gets overwritten
-        self.result_data.append(copy.deepcopy(state_dict))
+        state_dict = copy.deepcopy(initial_state)
+        self.result_data.append(state_dict)
 
         self.logger.info("Starting integration.")
 
@@ -178,8 +175,8 @@ class Integrator:
 
             metric_dict = {}
             for metric in self.metrics:
-                metric_dict[metric.__name__] = metric(state_dict,
-                                                      updated_state_dict)
+                metric_dict[metric.__name__] = metric(self, model, locals())
+
             # adding the current time stamp
             metric_dict.update({model.indep_name:
                                 updated_state_dict[model.indep_name]})

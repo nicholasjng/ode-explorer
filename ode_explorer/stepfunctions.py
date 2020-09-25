@@ -243,7 +243,6 @@ class ImplicitEulerMethod(StepFunction):
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        #
         if len(self.k) != len(y):
             self.k = np.zeros(len(y))
 

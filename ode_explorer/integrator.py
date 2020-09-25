@@ -96,7 +96,8 @@ class Integrator:
                         logfile_name: Text = None,
                         verbosity: int = 0,
                         data_outfile: Text = None,
-                        flush_data_every: int = None) -> None:
+                        flush_data_every: int = None,
+                        progress_bar: bool = True) -> None:
 
         # create file handler which logs even debug messages
         logfile = logfile_name or "logs.txt"
@@ -154,8 +155,13 @@ class Integrator:
 
         self.logger.info("Starting integration.")
 
-        for i in tqdm(range(num_steps + 1)):
+        iterator = range(num_steps + 1)
 
+        if progress_bar:
+            # register to tqdm
+            iterator = tqdm(iterator)
+
+        for i in iterator:
             if self._pre_step_hook:
                 self._pre_step_hook()
 

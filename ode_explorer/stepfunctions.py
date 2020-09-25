@@ -134,8 +134,7 @@ class RungeKutta4(StepFunction):
 class DOPRI5(StepFunction):
     """
     Dormand-Prince method for explicit ODE integration. This method returns a
-    dict with two y values, one accurate of order 4 and the other of order 5
-    (hence the name), which can be used for step size estimation.
+    dict with an approximation of order 5 in the step size.
     """
 
     def __init__(self, cache_ks: bool = False):
@@ -204,7 +203,6 @@ class DOPRI45(StepFunction):
     dict with two y values, one accurate of order 4 and the other of order 5
     (hence the name), which can be used for step size estimation.
     """
-
     def __init__(self):
         super(DOPRI45, self).__init__()
         self.order = 5
@@ -221,7 +219,6 @@ class ImplicitEulerMethod(StepFunction):
     """
     Implicit Euler Method for ODE solving.
     """
-
     def __init__(self, method: Text = "hybr", jac: Callable = None):
         super(ImplicitEulerMethod, self).__init__()
         self.order = 1

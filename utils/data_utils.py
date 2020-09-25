@@ -1,11 +1,31 @@
+import numpy as np
 import pandas as pd
 import os
 import datetime
-from typing import List, Dict, Text
+from ode_explorer.model import ODEModel
+from typing import List, Dict, Text, Any
 
 
 def make_log_dir():
     pass
+
+
+def convert_state_dict(state_dict: Dict[Text, Any], model: ODEModel):
+    def convert_to_zipped(state_dict: Dict[Text, Any], model: ODEModel):
+        t = state_dict[model.indep_name]
+        y = state_dict[model.variable_name[0]]
+        return {model.indep_name: t, **dict(zip(model.dim_names, y))}
+
+    def convert_from_zipped(state_dict: Dict[Text, Any], model: ODEModel):
+        t = state_dict[model.indep_name]
+        y = np.array([state_dict[key] for key in model.dim_names])
+        return {model.indep_name: t, model.variable_name:y}
+
+    # infer dict mode
+    if model.variable_name[0] in state_dict.keys():
+        return convert_to_zipped(state_dict=state_dict, model=model)
+    else:
+        return convert_from_zipped(state_dict=state_dict, model=model)
 
 
 def write_to_file(result_data: List[Dict[Text, float]],

@@ -31,6 +31,7 @@ class ODEModel:
                              "exclusive. Please supply only one of these "
                              "options.")
 
+        # TODO: This goes away as well
         if not any([bool(variable_names), bool(ode_dimension)]):
             raise ValueError("Please specify information about the "
                              "dimensionality of your ODE system, either "
@@ -45,6 +46,7 @@ class ODEModel:
         # additional arguments for the function
         self.fn_args = fn_args
 
+        # TODO: Change this stuff to a dynamic integrator runtime inference
         # state variable names for DataFrame columns
         self.variable_names = variable_names if variable_names else \
             ["y_{}".format(i) for i in range(ode_dimension)]
@@ -68,6 +70,7 @@ class ODEModel:
         :return: Dict with keys as variable names and float values as state
         values at time t.
         """
+        # TODO: Change this stuff too
         if not len(y) == len(self.variable_names):
             raise ValueError("Error: Variable names and ODE system size "
                              "do not match.")
@@ -75,6 +78,4 @@ class ODEModel:
         if kwargs:
             self.update_args(**kwargs)
 
-        ynew = self.ode_fn(t, y, **self.fn_args)
-
-        return ynew
+        return self.ode_fn(t, y, **self.fn_args)

@@ -97,7 +97,7 @@ class Integrator:
                         verbosity: int = 0,
                         data_outfile: Text = None,
                         flush_data_every: int = None,
-                        progress_bar: bool = True) -> None:
+                        progress_bar: bool = True):
 
         # create file handler which logs even debug messages
         logfile = logfile_name or "logs.txt"
@@ -110,7 +110,7 @@ class Integrator:
         self.logger.addHandler(fh)
 
         if not flush_data_every:
-            flush_data_every = num_steps + 1
+            flush_data_every = num_steps + 2
 
         # arg checks for time stepping
         stepping_data = [bool(end), bool(h), bool(num_steps)]
@@ -134,7 +134,6 @@ class Integrator:
         # Register the missing of the 4 arguments
         if not end:
             end = start + h * num_steps
-        # TODO: What happens if a step size controller is used?
         elif not h:
             h = (end - start) / num_steps
             logging.warning("No step size argument was supplied. The step "
@@ -149,13 +148,13 @@ class Integrator:
         state_dict = {**{model.indep_name: start},
                       **dict(zip(model.variable_names, y0))}
 
-        # here we have to deepcopy, otherwise the initial state gets
-        # overwritten in a bad way (result_data appends a view into the dict)
+        # deepcopy here, otherwise the initial state gets overwritten
         self.result_data.append(copy.deepcopy(state_dict))
 
         self.logger.info("Starting integration.")
 
-        iterator = range(num_steps + 1)
+        # treat initial state as state 0
+        iterator = range(1, num_steps + 2)
 
         if progress_bar:
             # register to tqdm
@@ -169,12 +168,11 @@ class Integrator:
 
             self.result_data.append(updated_state_dict)
 
-            if i > 0 and i % flush_data_every == 0:
+            if i % flush_data_every == 0:
                 self.write_data_to_file(data_outfile)
                 self.result_data = []
 
             # execute the registered callbacks after the step
-            # scikit-learn inspired callback signature
             for callback in self.callbacks:
                 callback(self, model, locals())
 
@@ -204,3 +202,7 @@ class Integrator:
 
             self.logger.info("Results written to file {}.".format(os.path.join(
                 self.log_dir, outfile_name)))
+
+        # return self to allow daisy chaining a visualization method
+        # TODO: Implement matplotlib based visualization method
+        return self

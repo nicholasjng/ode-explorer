@@ -14,10 +14,11 @@ class ODEModel:
                  ode_fn: Callable[[float, np.ndarray, Dict[Text, Any]],
                                   np.ndarray] = None,
                  fn_args: Dict[Text, Any] = None,
-                 ode_dimension: int = None,
-                 variable_names: List[Text] = None,
                  indep_name: Text = None,
+                 variable_name: List[Text] = None,
+                 dim_names: List[Text] = None
                  ):
+
         # ODE function, right hand side of y' = f(t,y)
         if not any([bool(module_path), bool(ode_fn_name),
                     bool(ode_fn)]):
@@ -31,13 +32,6 @@ class ODEModel:
                              "exclusive. Please supply only one of these "
                              "options.")
 
-        # TODO: This goes away as well
-        if not any([bool(variable_names), bool(ode_dimension)]):
-            raise ValueError("Please specify information about the "
-                             "dimensionality of your ODE system, either "
-                             "by the \"ode_dimension\" or \"variable_names\" "
-                             "arguments.")
-
         if bool(ode_fn):
             self.ode_fn = ode_fn
         else:
@@ -46,21 +40,32 @@ class ODEModel:
         # additional arguments for the function
         self.fn_args = fn_args
 
-        # TODO: Change this stuff to a dynamic integrator runtime inference
-        # state variable names for DataFrame columns
-        self.variable_names = variable_names if variable_names else \
-            ["y_{}".format(i) for i in range(ode_dimension)]
-
-        self.model_dim = ode_dimension if ode_dimension else \
-            len(self.variable_names)
-
-        self.indep_name = indep_name if indep_name else "time"
+        self.indep_name = indep_name or "time"
+        self.variable_name = variable_name or ["y"]
+        self.dim_names = dim_names
 
     def update_args(self, **kwargs):
         if self.fn_args:
             self.fn_args.update(kwargs)
         else:
             self.fn_args = kwargs
+
+    def initialize_dim_names(self, initial_state: Dict[Text, Any]):
+        num_dims = len(list(initial_state.keys())) - 1
+
+        # TODO: Graceful error handling by renaming?
+        if self.dim_names and len(self.dim_names) != num_dims:
+            raise ValueError("Error: Dimension mismatch. List of dimension "
+                             "names suggests a system of size {0}, but "
+                             "inferred system size {1} from initial state."
+                             "".format(len(self.dim_names), num_dims))
+
+        if not self.dim_names:
+            if num_dims == 1:
+                self.dim_names = ["y"]
+            else:
+                self.dim_names = ["y_{}".format(i) for i in
+                                  range(1, num_dims + 1)]
 
     def __call__(self, t: float, y: np.ndarray, **kwargs) -> np.ndarray:
         """

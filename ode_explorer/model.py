@@ -40,8 +40,8 @@ class ODEModel:
         # additional arguments for the function
         self.fn_args = fn_args
 
-        self.indep_name = indep_name or "time"
-        self.variable_name = variable_name or ["y"]
+        self.indep_name = indep_name or "t"
+        self.variable_name = variable_name or "y"
         self.dim_names = dim_names
 
     def update_args(self, **kwargs):
@@ -51,6 +51,7 @@ class ODEModel:
             self.fn_args = kwargs
 
     def initialize_dim_names(self, initial_state: Dict[Text, Any]):
+        # TODO: Infer definition here, whether in vector form or zipped
         num_dims = len(list(initial_state.keys())) - 1
 
         # TODO: Graceful error handling by renaming?
@@ -76,9 +77,9 @@ class ODEModel:
         values at time t.
         """
         # TODO: Change this stuff too
-        if not len(y) == len(self.variable_names):
-            raise ValueError("Error: Variable names and ODE system size "
-                             "do not match.")
+        # if not len(y) == len(self.variable_names):
+        #     raise ValueError("Error: Variable names and ODE system size "
+        #                      "do not match.")
 
         if kwargs:
             self.update_args(**kwargs)

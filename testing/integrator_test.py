@@ -27,15 +27,10 @@ def main(argv):
     integrator.integrate_const(model=model, initial_state=initial_state,
                                h=0.001, num_steps=10000, verbosity=1)
 
-    logging.get_absl_handler().use_absl_log_file('absl_logging', "./logs")
-
     integrator = Integrator(step_func=RungeKutta4(cache_ks=True))
 
     integrator.integrate_const(model=model, initial_state=initial_state,
                                h=0.001, num_steps=10000, verbosity=1)
-
-    logging.get_absl_handler().use_absl_log_file('absl_logging', "./logs")
-
 
 if __name__ == "__main__":
     app.run(main)

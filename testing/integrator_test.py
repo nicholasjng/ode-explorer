@@ -18,20 +18,21 @@ def main(argv):
     y_0 = np.ones(100)
     l = 0.5
 
-    model = ODEModel(ode_fn=ode_func, fn_args={"_lambda": l},
-                     ode_dimension=len(y_0))
+    model = ODEModel(ode_fn=ode_func, fn_args={"_lambda": l})
 
     integrator = Integrator(step_func=RungeKutta4())
 
-    integrator.integrate_const(model=model, start=t_0, y0=y_0, h=0.001,
-                               num_steps=10000, verbosity=1)
+    initial_state = {"t": t_0, "y": y_0}
+
+    integrator.integrate_const(model=model, initial_state=initial_state,
+                               h=0.001, num_steps=10000, verbosity=1)
 
     logging.get_absl_handler().use_absl_log_file('absl_logging', "./logs")
 
     integrator = Integrator(step_func=RungeKutta4(cache_ks=True))
 
-    integrator.integrate_const(model=model, start=t_0, y0=y_0, h=0.001,
-                               num_steps=10000, verbosity=1)
+    integrator.integrate_const(model=model, initial_state=initial_state,
+                               h=0.001, num_steps=10000, verbosity=1)
 
     logging.get_absl_handler().use_absl_log_file('absl_logging', "./logs")
 

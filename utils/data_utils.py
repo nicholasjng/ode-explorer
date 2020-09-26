@@ -14,11 +14,16 @@ def convert_state_dict(state_dict: Dict[Text, Any], model: ODEModel):
     def convert_to_zipped(state_dict: Dict[Text, Any], model: ODEModel):
         t = state_dict[model.indep_name]
         y = state_dict[model.variable_name]
+        # small check for a default value in the scalar case (n = 1)
+        if not hasattr(y, "__len__"):
+            return {model.indep_name: t, **dict(zip(model.dim_names, [y]))}
         return {model.indep_name: t, **dict(zip(model.dim_names, y))}
 
     def convert_from_zipped(state_dict: Dict[Text, Any], model: ODEModel):
         t = state_dict[model.indep_name]
         y = np.array([state_dict[key] for key in model.dim_names])
+        if len(model.dim_names) == 1:
+            return {model.indep_name: t, model.variable_name: y[0]}
         return {model.indep_name: t, model.variable_name: y}
 
     # infer dict mode by presence of variable name

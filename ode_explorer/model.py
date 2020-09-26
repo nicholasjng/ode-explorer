@@ -15,7 +15,7 @@ class ODEModel:
                                   np.ndarray] = None,
                  fn_args: Dict[Text, Any] = None,
                  indep_name: Text = None,
-                 variable_name: List[Text] = None,
+                 variable_name: Text = None,
                  dim_names: List[Text] = None
                  ):
 
@@ -50,9 +50,20 @@ class ODEModel:
         else:
             self.fn_args = kwargs
 
+    def make_initial_state(self, initial_time: float, initial_vec: Any):
+        return {self.indep_name: initial_time, self.variable_name: initial_vec}
+
     def initialize_dim_names(self, initial_state: Dict[Text, Any]):
-        # TODO: Infer definition here, whether in vector form or zipped
-        num_dims = len(list(initial_state.keys())) - 1
+        if all(isinstance(v, float) for v in initial_state.values()):
+            num_dims = len(list(initial_state.keys())) - 1
+        else:
+            num_dims = -1  # account for time
+            for v in initial_state.values():
+                if isinstance(v, float):
+                    num_dims += 1
+                else:
+                    # this implicitly allows only list-likes
+                    num_dims += len(v)
 
         # TODO: Graceful error handling by renaming?
         if self.dim_names and len(self.dim_names) != num_dims:
@@ -63,10 +74,10 @@ class ODEModel:
 
         if not self.dim_names:
             if num_dims == 1:
-                self.dim_names = ["y"]
+                self.dim_names = list(self.variable_name)
             else:
-                self.dim_names = ["y_{}".format(i) for i in
-                                  range(1, num_dims + 1)]
+                self.dim_names = ["{0}_{1}".format(self.variable_name, i)
+                                  for i in range(1, num_dims + 1)]
 
     def __call__(self, t: float, y: np.ndarray, **kwargs) -> np.ndarray:
         """

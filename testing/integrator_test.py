@@ -1,24 +1,24 @@
 import numpy as np
 import absl
-
-from absl import logging
 from absl import app
+
+from typing import Union
 
 from ode_explorer.stepfunctions import ImplicitEulerMethod, RungeKutta4
 from ode_explorer.model import ODEModel
 from ode_explorer.integrator import Integrator
 
 
-def ode_func(t: float, y: float, _lambda: float):
-    return -_lambda * y
+def ode_func(t: float, y: Union[float, np.ndarray], lamb: float):
+    return - lamb * y
 
 
 def main(argv):
     t_0 = 0.0
     y_0 = np.ones(100)
-    l = 0.5
+    lamb = 0.5
 
-    model = ODEModel(ode_fn=ode_func, fn_args={"_lambda": l})
+    model = ODEModel(ode_fn=ode_func, fn_args={"lamb": lamb})
 
     integrator = Integrator(step_func=RungeKutta4())
 
@@ -30,8 +30,9 @@ def main(argv):
     integrator = Integrator(step_func=RungeKutta4(cache_ks=True))
 
     integrator.integrate_const(model=model, initial_state=initial_state,
-                               h=0.001, num_steps=10000, verbosity=1)
+                               h=0.001, num_steps=10000, verbosity="DEBUG")
+
 
 if __name__ == "__main__":
-    app.run(main)
-    #main(None)
+    # app.run(main)
+    main(None)

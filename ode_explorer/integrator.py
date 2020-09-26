@@ -6,13 +6,14 @@ import copy
 
 import logging
 
-import absl.logging
-
 from tqdm import tqdm
 from typing import Dict, Callable, Text, Any, List
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.model import ODEModel
 from utils.data_utils import write_to_file
+
+logging.basicConfig(level=logging.DEBUG)
+integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")
 
 
 class Integrator:
@@ -25,6 +26,7 @@ class Integrator:
                  callbacks: List[Callable] = None,
                  metrics: List[Callable] = None,
                  log_dir: Text = None,
+                 logfile_name: Text = None,
                  data_output_dir: Text = None,
                  progress_bar: bool = True):
 
@@ -56,9 +58,11 @@ class Integrator:
 
         self.log_dir = log_dir or os.path.join(os.getcwd(), "logs")
 
-        self.logger = None
+        self.logfile_name = logfile_name or "logs.txt"
 
-        self.set_up_logger(log_dir=self.log_dir)
+        self.handlers = []
+
+        self.setup_logger(log_dir=self.log_dir)
 
         self.data_dir = data_output_dir or os.path.join(os.getcwd(), "results")
 
@@ -79,12 +83,22 @@ class Integrator:
 
         write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
-    def set_up_logger(self, log_dir):
+    def setup_logger(self, log_dir):
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
-        self.logger = logging.getLogger('Integrator')
-        self.logger.info('Creating an Integrator instance.')
+        integrator_logger.handlers = []
+
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler(os.path.join(self.log_dir, self.logfile_name))
+        fh.setLevel(logging.INFO)
+        integrator_logger.addHandler(ch)
+        integrator_logger.addHandler(fh)
+
+        self.handlers = self.handlers + [ch, fh]
+        integrator_logger.info('Creating an Integrator instance.')
 
     def integrate_const(self,
                         model: ODEModel,
@@ -93,20 +107,9 @@ class Integrator:
                         h: float = None,
                         num_steps: int = None,
                         reset_step_counter: bool = True,
-                        logfile_name: Text = None,
                         verbosity: int = 0,
                         data_outfile: Text = None,
                         flush_data_every: int = None):
-
-        # create file handler which logs even debug messages
-        logfile = logfile_name or "logs.txt"
-        fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
-        fh.setLevel(verbosity)
-        # create formatter and add it to the handlers
-        formatter = absl.logging.PythonFormatter()
-        fh.setFormatter(formatter)
-        # add the handlers to the logger
-        self.logger.addHandler(fh)
 
         # initialize dimension names
         model.initialize_dim_names(initial_state)
@@ -140,7 +143,8 @@ class Integrator:
             end = start + h * num_steps
         elif not h:
             h = (end - start) / num_steps
-            logging.warning("No step size argument was supplied. The step "
+            integrator_logger.warning(
+                            "No step size argument was supplied. The step "
                             "size will be set according to the start, end "
                             "and num_steps arguments. This can have a "
                             "negative affect on accuracy.")
@@ -151,7 +155,7 @@ class Integrator:
         state_dict = copy.deepcopy(initial_state)
         self.result_data.append(initial_state)
 
-        self.logger.info("Starting integration.")
+        integrator_logger.info("Starting integration.")
 
         # treat initial state as state 0
         iterator = range(1, num_steps + 2)
@@ -192,7 +196,7 @@ class Integrator:
 
             self._step_count += 1
 
-        self.logger.info("Finished integration.")
+        integrator_logger.info("Finished integration.")
 
         if self.result_data:
             outfile_name = data_outfile or "run_" + \
@@ -200,7 +204,7 @@ class Integrator:
 
             self.write_data_to_file(model=model, data_outfile=data_outfile)
 
-            self.logger.info("Results written to file {}.".format(
+            integrator_logger.info("Results written to file {}.".format(
                 os.path.join(self.log_dir, outfile_name)))
 
         # return self to allow daisy chaining a visualization method

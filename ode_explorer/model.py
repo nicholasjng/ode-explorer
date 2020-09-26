@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable, Dict, Any, Text, List
+from typing import Callable, Dict, Any, Text, List, Union
 from utils.import_utils import import_func_from_module
 
 
@@ -11,13 +11,13 @@ class ODEModel:
     def __init__(self,
                  module_path: Text = None,
                  ode_fn_name: Text = None,
-                 ode_fn: Callable[[float, np.ndarray, Dict[Text, Any]],
-                                  np.ndarray] = None,
+                 ode_fn: Callable[[float, Union[float, np.ndarray],
+                                  Dict[Text, Any]],
+                                  Union[float, np.ndarray]] = None,
                  fn_args: Dict[Text, Any] = None,
                  indep_name: Text = None,
                  variable_name: Text = None,
-                 dim_names: List[Text] = None
-                 ):
+                 dim_names: List[Text] = None):
 
         # ODE function, right hand side of y' = f(t,y)
         if not any([bool(module_path), bool(ode_fn_name),

@@ -25,7 +25,8 @@ class Integrator:
                  callbacks: List[Callable] = None,
                  metrics: List[Callable] = None,
                  log_dir: Text = None,
-                 data_output_dir: Text = None):
+                 data_output_dir: Text = None,
+                 progress_bar: bool = True):
 
         # step function used to integrate a model
         self.step_func = step_func
@@ -61,6 +62,8 @@ class Integrator:
 
         self.data_dir = data_output_dir or os.path.join(os.getcwd(), "results")
 
+        self.progress_bar = progress_bar
+
     def _reset_step_counter(self):
         self._step_count = 0
 
@@ -70,11 +73,11 @@ class Integrator:
     def add_metrics(self, metric_list: List[Callable]):
         self.metrics = self.metrics + metric_list
 
-    def write_data_to_file(self, data_outfile: Text = None):
+    def write_data_to_file(self, model, data_outfile: Text = None):
         data_outfile = data_outfile or "run_" + \
                            datetime.datetime.now().strftime('%Y-%m-%d')
 
-        write_to_file(self.result_data, self.data_dir, data_outfile)
+        write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
     def set_up_logger(self, log_dir):
         if not os.path.exists(log_dir):
@@ -93,8 +96,7 @@ class Integrator:
                         logfile_name: Text = None,
                         verbosity: int = 0,
                         data_outfile: Text = None,
-                        flush_data_every: int = None,
-                        progress_bar: bool = True):
+                        flush_data_every: int = None):
 
         # create file handler which logs even debug messages
         logfile = logfile_name or "logs.txt"
@@ -147,14 +149,14 @@ class Integrator:
 
         # deepcopy here, otherwise the initial state gets overwritten
         state_dict = copy.deepcopy(initial_state)
-        self.result_data.append(state_dict)
+        self.result_data.append(initial_state)
 
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
         iterator = range(1, num_steps + 2)
 
-        if progress_bar:
+        if self.progress_bar:
             # register to tqdm
             iterator = tqdm(iterator)
 
@@ -196,7 +198,7 @@ class Integrator:
             outfile_name = data_outfile or "run_" + \
                            datetime.datetime.now().strftime('%Y-%m-%d')
 
-            self.write_data_to_file(data_outfile=data_outfile)
+            self.write_data_to_file(model=model, data_outfile=data_outfile)
 
             self.logger.info("Results written to file {}.".format(
                 os.path.join(self.log_dir, outfile_name)))

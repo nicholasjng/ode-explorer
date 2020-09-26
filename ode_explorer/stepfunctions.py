@@ -7,7 +7,13 @@ from scipy.optimize import root
 import jax.numpy as jnp
 from jax import grad, jit, vmap
 
-__all__ = ["EulerMethod", "HeunMethod", "RungeKutta4", "DOPRI5"]
+__all__ = ["StepFunction",
+           "EulerMethod",
+           "HeunMethod",
+           "RungeKutta4",
+           "DOPRI5",
+           "ImplicitEulerMethod",
+           "AdamsBashforth2"]
 
 
 class StepFunction:
@@ -27,14 +33,36 @@ class StepFunction:
 
         # at this point, t is removed from the dict
         # and only the state is left
-        y = np.array(list(state.values()))
+        if model.variable_name in state:
+            y = state[model.variable_name]
+        else:
+            y = np.array(list(state.values()))
+
+        # scalar ODE, return just the value then
+        if len(y) == 1:
+            return t, y[0]
 
         return t, y
+
+    @staticmethod
+    def make_zipped_dict(model: ODEModel, t: float, y: Any):
+        if isinstance(y, float):
+            y_new = [y]
+        else:
+            y_new = y
+
+        return {**{model.indep_name: t},
+                **dict(zip(model.dim_names, y_new))}
+
+    @staticmethod
+    def make_state_dict(model: ODEModel, t: float, y: Any):
+        return {model.indep_name: t, model.variable_name: y}
 
     def forward(self,
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
         raise NotImplementedError
 
@@ -52,13 +80,16 @@ class EulerMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
         y_new = y + h * model(t, y, **kwargs)
 
-        new_state = {**{model.indep_name: t + h},
-                     **dict(zip(model.variable_names, y_new))}
+        if return_format == "zipped":
+            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
+        else:
+            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -76,6 +107,7 @@ class HeunMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
@@ -83,8 +115,10 @@ class HeunMethod(StepFunction):
         k1 = model(t, y, **kwargs)
         y_new = y + hs * (k1 + model(t + h, k1))
 
-        new_state = {**{model.indep_name: t + h},
-                     **dict(zip(model.variable_names, y_new))}
+        if return_format == "zipped":
+            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
+        else:
+            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -107,6 +141,7 @@ class RungeKutta4(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
@@ -125,8 +160,10 @@ class RungeKutta4(StepFunction):
 
         y_new = y + h * np.sum(ks * self.gammas, axis=1)
 
-        new_state = {**{model.indep_name: t + h},
-                     **dict(zip(model.variable_names, y_new))}
+        if return_format == "zipped":
+            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
+        else:
+            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -162,6 +199,7 @@ class DOPRI5(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
@@ -191,8 +229,10 @@ class DOPRI5(StepFunction):
         # step size estimation does not happen here
         y_new = y + h * np.sum(ks * self.gammas, axis=1)
 
-        new_state = {**{model.indep_name: t + h},
-                     **dict(zip(model.variable_names, y_new))}
+        if return_format == "zipped":
+            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
+        else:
+            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -211,6 +251,7 @@ class DOPRI45(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
         pass
 
@@ -236,6 +277,7 @@ class ImplicitEulerMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
@@ -260,8 +302,12 @@ class ImplicitEulerMethod(StepFunction):
         root_res = root(F, x0=self.k, args=args,
                         method=self.method, jac=self.jac)
 
-        new_state = {**{model.indep_name: t + h},
-                     **dict(zip(model.variable_names, root_res.x))}
+        y_new = root_res.x
+
+        if return_format == "zipped":
+            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
+        else:
+            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -322,6 +368,7 @@ class AdamsBashforth2(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, float],
                 h: float,
+                return_format: Text = "variables",
                 **kwargs) -> Dict[Text, float]:
 
         if not self.ready:
@@ -330,9 +377,16 @@ class AdamsBashforth2(StepFunction):
             self.perform_startup_calculation(model=model, state=state, h=h,
                                              **kwargs)
 
-            new_state = {**{model.indep_name: self.t_cache[-1]},
-                         **dict(zip(model.variable_names,
-                                    self.y_cache[:, -1]))}
+            y_new = self.y_cache[:, -1]
+
+            if return_format == "zipped":
+                new_state = self.make_zipped_dict(model=model,
+                                                  t=self.t_cache[-1],
+                                                  y=y_new)
+            else:
+                new_state = self.make_state_dict(model=model,
+                                                 t=self.t_cache[-1],
+                                                 y=y_new)
 
             return new_state
 
@@ -353,7 +407,9 @@ class AdamsBashforth2(StepFunction):
         self.y_cache[:, -1] = y_new
         self.f_cache[:, -1] = model(t + h, y_new, **kwargs)
 
-        new_state = {**{model.indep_name: t + h},
-                     **dict(zip(model.variable_names, y_new))}
+        if return_format == "zipped":
+            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
+        else:
+            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state

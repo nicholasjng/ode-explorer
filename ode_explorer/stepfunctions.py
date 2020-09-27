@@ -5,14 +5,15 @@ from ode_explorer.model import ODEModel
 from utils.data_utils import isscalar
 
 from scipy.optimize import root, root_scalar
-import jax.numpy as jnp
-from jax import grad, jit, vmap
+# import jax.numpy as jnp
+# from jax import grad, jit, vmap
 
 __all__ = ["StepFunction",
            "EulerMethod",
            "HeunMethod",
            "RungeKutta4",
            "DOPRI5",
+           "DOPRI45",
            "ImplicitEulerMethod",
            "AdamsBashforth2"]
 
@@ -301,6 +302,7 @@ class ImplicitEulerMethod(StepFunction):
         else:
             args = ()
 
+        # TODO: Retry here in case of convergence failure?
         if isscalar(y):
             root_res = root_scalar(F, args=args, **self.solver_kwargs)
         else:
@@ -334,7 +336,7 @@ class AdamsBashforth2(StepFunction):
         self.f_cache = np.zeros_like(self.y_cache)
 
         # multistep method variables
-        self.a_coeffs = np.array([1.0])  # unused for this specialized function
+        self.a_coeffs = np.array([1.0])  # unused
         self.b_coeffs = np.array([1.5, -0.5])
 
     def reset(self):
@@ -364,8 +366,8 @@ class AdamsBashforth2(StepFunction):
         self.t_cache[1], self.y_cache[:, 1] = t1, y1
 
         # fill function evaluation cache
-        self.f_cache[:, 0], self.f_cache[:, 1] = model(t, y, **kwargs), \
-                                                 model(t1, y1, **kwargs)
+        self.f_cache[:, 0] = model(t, y, **kwargs)
+        self.f_cache[:, 1] = model(t1, y1, **kwargs)
 
         self.ready = True
 

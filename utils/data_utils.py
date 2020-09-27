@@ -10,6 +10,10 @@ def make_log_dir():
     pass
 
 
+def isscalar(y):
+    return hasattr(y, "__len__")
+
+
 def convert_to_zipped(state_dict: Dict[Text, Any], model: ODEModel):
     t = state_dict[model.indep_name]
     y = state_dict[model.variable_name]

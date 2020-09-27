@@ -39,7 +39,7 @@ class StepFunction:
             y = np.array(list(state.values()))
 
         # scalar ODE, return just the value then
-        if len(y) == 1:
+        if hasattr(y, "__len__") and len(y) == 1:
             return t, y[0]
 
         return t, y
@@ -100,8 +100,9 @@ class HeunMethod(StepFunction):
     """
 
     def __init__(self):
-        super().__init__()
+        super(HeunMethod, self).__init__()
         self.order = 1
+        self.ks = np.zeros((1, 2))
 
     def forward(self,
                 model: ODEModel,
@@ -111,9 +112,15 @@ class HeunMethod(StepFunction):
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
+        if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
+            self.ks = np.zeros((len(y), 4))
+
         hs = 0.5 * h
-        k1 = model(t, y, **kwargs)
-        y_new = y + hs * (k1 + model(t + h, k1))
+        ks = self.ks
+
+        ks[:, 0] = model(t, y, **kwargs)
+        ks[:, 1] = model(t + h, ks[:, 0], **kwargs)
+        y_new = y + hs * np.sum(ks, axis=1)
 
         if return_format == "zipped":
             new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
@@ -128,13 +135,11 @@ class RungeKutta4(StepFunction):
     Classic Runge Kutta of order 4 for ODE integration.
     """
 
-    def __init__(self, cache_ks: bool = False):
+    def __init__(self):
         super(RungeKutta4, self).__init__()
 
         self.order = 4
         self.gammas = np.array([1.0, 2.0, 2.0, 1.0]) / 6
-
-        self.cache_ks = cache_ks
         self.ks = np.zeros((1, 4))
 
     def forward(self,
@@ -145,13 +150,13 @@ class RungeKutta4(StepFunction):
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        if self.cache_ks and len(y) != self.ks.shape[0]:
+        if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 4))
 
         # notation follows that in
         # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
         hs = 0.5 * h
-        ks = self.ks if self.cache_ks else np.zeros((len(y), 4))
+        ks = self.ks
 
         ks[:, 0] = model(t, y, **kwargs)
         ks[:, 1] = model(t + hs, y + hs * ks[:, 0], **kwargs)
@@ -174,11 +179,9 @@ class DOPRI5(StepFunction):
     dict with an approximation of order 5 in the step size.
     """
 
-    def __init__(self, cache_ks: bool = False):
+    def __init__(self):
         super(DOPRI5, self).__init__()
         self.order = 5
-
-        self.cache_ks = cache_ks
         self.ks = np.zeros((1, 6))
 
         # RK-specific variables
@@ -203,11 +206,11 @@ class DOPRI5(StepFunction):
                 **kwargs) -> Dict[Text, float]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        if self.cache_ks and len(y) != self.ks.shape[0]:
+        if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 6))
 
         hs = self.alphas * h
-        ks = self.ks if self.cache_ks else np.zeros((len(y), 6))
+        ks = self.ks
 
         # FSAL rule, first eval is last eval of previous step
         ks[:, 0] = model(t, y, **kwargs)
@@ -282,7 +285,7 @@ class ImplicitEulerMethod(StepFunction):
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        if len(self.k) != len(y):
+        if hasattr(y, "__len__") and len(y) != len(self.k):
             self.k = np.zeros(len(y))
 
         def F(x, *args) -> np.ndarray:
@@ -347,7 +350,8 @@ class AdamsBashforth2(StepFunction):
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        self.y_cache = np.zeros((len(y), 2))
+        if hasattr(y, "__len__") and len(y) != self.y_cache.shape[0]:
+            self.y_cache = np.zeros((len(y), 2))
 
         self.t_cache[0], self.y_cache[:, 0] = t, y
         startup_state = self.startup.forward(model=model, state=state,
@@ -392,7 +396,7 @@ class AdamsBashforth2(StepFunction):
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
-        # TODO here: Decide here whether to return cached values based on
+        # TODO: Decide here whether to return cached values based on
         #  the condition t <= self.t_cache[-1]. Return the last cached value
         #  with t < self.t_cache[i]. This is O(n), but n is small
         #  (order of method) so what gives

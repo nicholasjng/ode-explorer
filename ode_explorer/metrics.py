@@ -30,7 +30,7 @@ class DistanceToSolution(Metric):
         updated_state = locals["updated_state_dict"]
 
         t = updated_state[model.indep_name]
-        y = np.array([updated_state[key] for key in model.variable_names])
+        y = np.array([updated_state[key] for key in model.dim_names])
 
         y_pred = self.solution(t)
 

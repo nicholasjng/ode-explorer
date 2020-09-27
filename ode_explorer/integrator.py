@@ -1,12 +1,9 @@
-# import numpy as np
 import pandas as pd
 import os
 import datetime
 import copy
-
-# import matplotlib.pyplot as plt
-
 import logging
+import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from typing import Dict, Callable, Text, Any, List
@@ -213,7 +210,8 @@ class Integrator:
     def visualize(self, model: ODEModel, ax=None):
 
         for i, res in enumerate(self.result_data):
-            self.result_data[i] = convert_to_zipped(res, model)
+            if not all(key in res for key in model.dim_names):
+                self.result_data[i] = convert_to_zipped(res, model)
 
         df = pd.DataFrame(self.result_data)
 

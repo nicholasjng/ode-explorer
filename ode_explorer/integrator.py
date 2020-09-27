@@ -1,4 +1,4 @@
-import numpy as np
+# import numpy as np
 import pandas as pd
 import os
 import datetime
@@ -38,25 +38,15 @@ class Integrator:
         # pre-step function, will be called before each step if specified
         self._pre_step_hook = pre_step_hook
 
-        # data container for the steps
-        self.result_data = []
+        # empty lists holding the step and metric data
+        self.result_data, self.metric_data = [], []
 
         # step count, can be used to track integration runs
         self._step_count = 0
 
-        # empty list holding the metric data
-        self.metric_data = []
-
-        # callbacks to be executed after the step
-        if callbacks is None:
-            self.callbacks = []
-        else:
-            self.callbacks = callbacks
-
-        if metrics is None:
-            self.metrics = []
-        else:
-            self.metrics = metrics
+        # callbacks and metrics, to be executed/computed after the step
+        self.callbacks = callbacks or []
+        self.metrics = metrics or []
 
         self.log_dir = log_dir or os.path.join(os.getcwd(), "logs")
 
@@ -81,7 +71,7 @@ class Integrator:
 
     def write_data_to_file(self, model, data_outfile: Text = None):
         data_outfile = data_outfile or "run_" + \
-                           datetime.datetime.now().strftime('%Y-%m-%d')
+                        datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
         write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
@@ -211,7 +201,7 @@ class Integrator:
 
         if self.result_data:
             outfile_name = data_outfile or "run_" + \
-                           datetime.datetime.now().strftime('%Y-%m-%d')
+                        datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
             self.write_data_to_file(model=model, data_outfile=data_outfile)
 

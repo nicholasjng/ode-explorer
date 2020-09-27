@@ -11,8 +11,7 @@ class ODEModel:
     def __init__(self,
                  module_path: Text = None,
                  ode_fn_name: Text = None,
-                 ode_fn: Callable[[float, Union[float, np.ndarray],
-                                  Dict[Text, Any]],
+                 ode_fn: Callable[[float, Union[float, np.ndarray], Any],
                                   Union[float, np.ndarray]] = None,
                  fn_args: Dict[Text, Any] = None,
                  indep_name: Text = None,
@@ -54,7 +53,7 @@ class ODEModel:
         return {self.indep_name: initial_time, self.variable_name: initial_vec}
 
     def initialize_dim_names(self, initial_state: Dict[Text, Any]):
-        if all(isinstance(v, float) for v in initial_state.values()):
+        if not any(hasattr(v, "__len__") for v in initial_state.values()):
             num_dims = len(list(initial_state.keys())) - 1
         else:
             num_dims = -1  # account for time
@@ -87,11 +86,6 @@ class ODEModel:
         :return: Dict with keys as variable names and float values as state
         values at time t.
         """
-        # TODO: Change this stuff too
-        # if not len(y) == len(self.variable_names):
-        #     raise ValueError("Error: Variable names and ODE system size "
-        #                      "do not match.")
-
         if kwargs:
             self.update_args(**kwargs)
 

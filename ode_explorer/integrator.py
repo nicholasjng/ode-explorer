@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 import os
-import absl
 import datetime
 import copy
+
+# import matplotlib.pyplot as plt
 
 import logging
 
@@ -10,7 +12,7 @@ from tqdm import tqdm
 from typing import Dict, Callable, Text, Any, List
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.model import ODEModel
-from utils.data_utils import write_to_file
+from utils.data_utils import write_to_file, convert_to_zipped
 
 logging.basicConfig(level=logging.DEBUG)
 integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")
@@ -88,12 +90,11 @@ class Integrator:
             os.mkdir(log_dir)
 
         self.logger = integrator_logger
-
+        # flush handlers on construction since it is a global object
         self.logger.handlers = []
 
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
-        # create file handler which logs even debug messages
         fh = logging.FileHandler(os.path.join(self.log_dir, self.logfile_name))
         fh.setLevel(logging.INFO)
         self.logger.addHandler(ch)
@@ -109,7 +110,14 @@ class Integrator:
                         reset_step_counter: bool = True,
                         verbosity: int = 0,
                         data_outfile: Text = None,
+                        logfile: Text = None,
                         flush_data_every: int = None):
+
+        # create file handler
+        if logfile:
+            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
+            self.logger.addHandler(fh)
+            fh.setLevel(verbosity)
 
         # initialize dimension names
         model.initialize_dim_names(initial_state)
@@ -210,6 +218,13 @@ class Integrator:
             self.logger.info("Results written to file {}.".format(
                 os.path.join(self.log_dir, outfile_name)))
 
-        # return self to allow daisy chaining a visualization method
-        # TODO: Implement matplotlib based visualization method
         return self
+
+    def visualize(self, model: ODEModel, ax=None):
+
+        for i, res in enumerate(self.result_data):
+            self.result_data[i] = convert_to_zipped(res, model)
+
+        df = pd.DataFrame(self.result_data)
+
+        df.plot(ax=ax)

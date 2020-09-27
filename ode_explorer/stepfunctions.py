@@ -1,9 +1,10 @@
 import numpy as np
 import inspect
-from typing import Dict, Text, Any, Callable, Union
+from typing import Dict, Text, Any, Union
 from ode_explorer.model import ODEModel
+from utils.data_utils import isscalar
 
-from scipy.optimize import root
+from scipy.optimize import root, root_scalar
 import jax.numpy as jnp
 from jax import grad, jit, vmap
 
@@ -263,7 +264,7 @@ class ImplicitEulerMethod(StepFunction):
     """
     Implicit Euler Method for ODE solving.
     """
-    def __init__(self, method: Text = "hybr", jac: Callable = None):
+    def __init__(self, **kwargs):
         super(ImplicitEulerMethod, self).__init__()
         self.order = 1
 
@@ -273,8 +274,7 @@ class ImplicitEulerMethod(StepFunction):
         self.gamma = 1.0
 
         # scipy.optimize.root options
-        self.method = method
-        self.jac = jac
+        self.solver_kwargs = kwargs
 
     def forward(self,
                 model: ODEModel,
@@ -301,9 +301,10 @@ class ImplicitEulerMethod(StepFunction):
         else:
             args = ()
 
-        # TODO: Call a scalar root finder in case of a scalar ODE
-        root_res = root(F, x0=self.k, args=args,
-                        method=self.method, jac=self.jac)
+        if isscalar(y):
+            root_res = root_scalar(F, args=args, **self.solver_kwargs)
+        else:
+            root_res = root(F, x0=self.k, args=args, **self.solver_kwargs)
 
         y_new = root_res.x
 

@@ -1,7 +1,4 @@
 import numpy as np
-import absl
-from absl import app
-
 from typing import Union
 
 from ode_explorer.stepfunctions import ImplicitEulerMethod, RungeKutta4
@@ -15,7 +12,7 @@ def ode_func(t: float, y: Union[float, np.ndarray], lamb: float):
 
 def main(argv):
     t_0 = 0.0
-    y_0 = np.ones(100)
+    y_0 = 1.0  # np.ones(100)
     lamb = 0.5
 
     model = ODEModel(ode_fn=ode_func, fn_args={"lamb": lamb})
@@ -26,11 +23,6 @@ def main(argv):
 
     integrator.integrate_const(model=model, initial_state=initial_state,
                                h=0.001, num_steps=10000, verbosity=1)
-
-    integrator = Integrator(step_func=RungeKutta4(cache_ks=True))
-
-    integrator.integrate_const(model=model, initial_state=initial_state,
-                               h=0.001, num_steps=10000, verbosity="DEBUG")
 
 
 if __name__ == "__main__":

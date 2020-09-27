@@ -1,6 +1,6 @@
 import numpy as np
 import inspect
-from typing import Dict, Text, Any, Callable
+from typing import Dict, Text, Any, Callable, Union
 from ode_explorer.model import ODEModel
 
 from scipy.optimize import root
@@ -63,7 +63,7 @@ class StepFunction:
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         raise NotImplementedError
 
 
@@ -81,7 +81,7 @@ class EulerMethod(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
         y_new = y + h * model(t, y, **kwargs)
@@ -109,7 +109,7 @@ class HeunMethod(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
         if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
@@ -147,7 +147,7 @@ class RungeKutta4(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
         if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
@@ -203,7 +203,7 @@ class DOPRI5(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
         if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
@@ -255,7 +255,7 @@ class DOPRI45(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         pass
 
 
@@ -281,14 +281,14 @@ class ImplicitEulerMethod(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model, state=state)
 
         if hasattr(y, "__len__") and len(y) != len(self.k):
             self.k = np.zeros(len(y))
 
-        def F(x, *args) -> np.ndarray:
+        def F(x, *args) -> Union[np.ndarray, float]:
             # kwargs are not allowed in scipy.optimize.root, so
             # pass tuple instead
             return y + h * model(t + h, x, *args) - x
@@ -373,7 +373,7 @@ class AdamsBashforth2(StepFunction):
                 state: Dict[Text, float],
                 h: float,
                 return_format: Text = "variables",
-                **kwargs) -> Dict[Text, float]:
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         if not self.ready:
             # startup calculation to the multistep method,

@@ -10,6 +10,7 @@ from typing import Dict, Callable, Text, Any, List
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.model import ODEModel
 from utils.data_utils import write_to_file, convert_to_zipped
+from utils.data_utils import infer_dict_format
 
 logging.basicConfig(level=logging.DEBUG)
 integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")
@@ -109,6 +110,8 @@ class Integrator:
         # initialize dimension names
         model.initialize_dim_names(initial_state)
 
+        input_format = infer_dict_format(state_dict=initial_state, model=model)
+
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
 
@@ -142,10 +145,10 @@ class Integrator:
         elif not h:
             h = (end - start) / num_steps
             integrator_logger.warning(
-                            "No step size argument was supplied. The step "
-                            "size will be set according to the start, end "
-                            "and num_steps arguments. This can have a "
-                            "negative affect on accuracy.")
+                            "No step size was supplied. The step size will be "
+                            "set according to the given start, end "
+                            "and num_steps values. This can potentially have "
+                            "a negative affect on accuracy.")
         elif not num_steps:
             num_steps = int((end - start) / h)
 

@@ -2,7 +2,8 @@ import numpy as np
 import inspect
 from typing import Dict, Text, Any, Union
 from ode_explorer.model import ODEModel
-from utils.data_utils import isscalar
+from ode_explorer.constants import ZIPPED, VARIABLES
+from utils.data_utils import is_scalar
 
 from scipy.optimize import root, root_scalar
 # import jax.numpy as jnp
@@ -29,26 +30,26 @@ class StepFunction:
 
     @staticmethod
     def get_data_from_state_dict(model: ODEModel,
-                                 state: Dict[Text, float]):
-        # state_copy = state.copy()
-        t = state.pop(model.indep_name)
+                                 state_dict: Dict[Text, float]):
+        # TODO here: Pass format argument for smart format inference
+        t = state_dict.pop(model.indep_name)
 
         # at this point, t is removed from the dict
         # and only the state is left
-        if model.variable_name in state:
-            y = state[model.variable_name]
+        if all(var in state_dict for var in model.variable_names):
+            y = state_dict[model.variable_names[0]]
         else:
-            y = np.array(list(state.values()))
+            y = np.array(list(state_dict.values()))
 
         # scalar ODE, return just the value then
-        if hasattr(y, "__len__") and len(y) == 1:
+        if not is_scalar(y) and len(y) == 1:
             return t, y[0]
 
         return t, y
 
     @staticmethod
     def make_zipped_dict(model: ODEModel, t: float, y: Any):
-        if isinstance(y, float):
+        if is_scalar(y):
             y_new = [y]
         else:
             y_new = y
@@ -58,11 +59,11 @@ class StepFunction:
 
     @staticmethod
     def make_state_dict(model: ODEModel, t: float, y: Any):
-        return {model.indep_name: t, model.variable_name: y}
+        return {model.indep_name: t, model.variable_names[0]: y}
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
@@ -80,11 +81,13 @@ class EulerMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         y_new = y + h * model(t, y, **kwargs)
 
@@ -108,11 +111,13 @@ class HeunMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 4))
@@ -146,11 +151,12 @@ class RungeKutta4(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 4))
@@ -202,11 +208,13 @@ class DOPRI5(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 6))
@@ -254,7 +262,7 @@ class DOPRI45(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
@@ -279,12 +287,13 @@ class ImplicitEulerMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         if hasattr(y, "__len__") and len(y) != len(self.k):
             self.k = np.zeros(len(y))
@@ -303,7 +312,7 @@ class ImplicitEulerMethod(StepFunction):
             args = ()
 
         # TODO: Retry here in case of convergence failure?
-        if isscalar(y):
+        if is_scalar(y):
             root_res = root_scalar(F, args=args, **self.solver_kwargs)
         else:
             root_res = root(F, x0=self.k, args=args, **self.solver_kwargs)
@@ -347,21 +356,24 @@ class AdamsBashforth2(StepFunction):
         self.ready = False
 
     def perform_startup_calculation(self, model: ODEModel,
-                                    state: Dict[Text, float],
+                                    state_dict: Dict[Text,
+                                                     Union[np.ndarray, float]],
                                     h: float,
                                     **kwargs):
 
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         if hasattr(y, "__len__") and len(y) != self.y_cache.shape[0]:
             self.y_cache = np.zeros((len(y), 2))
 
         self.t_cache[0], self.y_cache[:, 0] = t, y
-        startup_state = self.startup.forward(model=model, state=state,
+        startup_state = self.startup.forward(model=model,
+                                             state_dict=state_dict,
                                              h=h, **kwargs)
 
         t1, y1 = self.get_data_from_state_dict(model=model,
-                                               state=startup_state)
+                                               state_dict=startup_state)
 
         self.t_cache[1], self.y_cache[:, 1] = t1, y1
 
@@ -373,7 +385,7 @@ class AdamsBashforth2(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state: Dict[Text, float],
+                state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
@@ -381,7 +393,8 @@ class AdamsBashforth2(StepFunction):
         if not self.ready:
             # startup calculation to the multistep method,
             # fills the y-, t- and f-caches
-            self.perform_startup_calculation(model=model, state=state, h=h,
+            self.perform_startup_calculation(model=model,
+                                             state_dict=state_dict, h=h,
                                              **kwargs)
 
             y_new = self.y_cache[:, -1]
@@ -397,7 +410,8 @@ class AdamsBashforth2(StepFunction):
 
             return new_state
 
-        t, y = self.get_data_from_state_dict(model=model, state=state)
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict)
 
         # TODO: Decide here whether to return cached values based on
         #  the condition t <= self.t_cache[-1]. Return the last cached value

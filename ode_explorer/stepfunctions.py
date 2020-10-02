@@ -1,6 +1,7 @@
 import numpy as np
-import inspect
-from typing import Dict, Text, Any, Union
+# import inspect
+# import bisect
+from typing import Dict, Text, Union
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import ZIPPED, VARIABLES
 from utils.data_utils import is_scalar
@@ -24,22 +25,31 @@ class StepFunction:
     Base class for all ODE step functions.
     """
 
-    def __init__(self):
+    def __init__(self, output_format: Text = VARIABLES, order: int = 0):
         # order of the method
-        self.order = 0
+        self.order = order
+        if output_format not in [VARIABLES, ZIPPED]:
+            raise ValueError(f"Error: Output format {output_format} not "
+                             f"understood.")
+        self.output_format = output_format
 
     @staticmethod
     def get_data_from_state_dict(model: ODEModel,
-                                 state_dict: Dict[Text, float]):
-        # TODO here: Pass format argument for smart format inference
+                                 state_dict: Dict[Text,
+                                                  Union[np.ndarray, float]],
+                                 input_format: Text):
+
         t = state_dict.pop(model.indep_name)
 
         # at this point, t is removed from the dict
         # and only the state is left
-        if all(var in state_dict for var in model.variable_names):
+        if input_format == VARIABLES:
             y = state_dict[model.variable_names[0]]
-        else:
+        elif input_format == ZIPPED:
             y = np.array(list(state_dict.values()))
+        else:
+            raise ValueError(f"Error: Input format {input_format} not "
+                             f"understood.")
 
         # scalar ODE, return just the value then
         if not is_scalar(y) and len(y) == 1:
@@ -48,7 +58,8 @@ class StepFunction:
         return t, y
 
     @staticmethod
-    def make_zipped_dict(model: ODEModel, t: float, y: Any):
+    def make_zipped_dict(model: ODEModel, t: float,
+                         y: Union[np.ndarray, float]):
         if is_scalar(y):
             y_new = [y]
         else:
@@ -58,14 +69,24 @@ class StepFunction:
                 **dict(zip(model.dim_names, y_new))}
 
     @staticmethod
-    def make_state_dict(model: ODEModel, t: float, y: Any):
+    def make_state_dict(model: ODEModel, t: float,
+                        y: Union[np.ndarray, float]):
         return {model.indep_name: t, model.variable_names[0]: y}
+
+    def make_new_state_dict(self, model: ODEModel, t: float,
+                            y: Union[np.ndarray, float]):
+
+        if self.output_format == ZIPPED:
+            return self.make_zipped_dict(model=model, t=t, y=y)
+        else:
+            return self.make_state_dict(model=model, t=t, y=y)
+
 
     def forward(self,
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                return_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         raise NotImplementedError
 
@@ -75,26 +96,24 @@ class EulerMethod(StepFunction):
     Euler method for ODE integration.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, output_format: Text = VARIABLES):
+        super(EulerMethod, self).__init__(output_format=output_format)
         self.order = 1
 
     def forward(self,
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
         y_new = y + h * model(t, y, **kwargs)
 
-        if return_format == "zipped":
-            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
-        else:
-            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state_dict(model=model, y=y_new, t=t+h)
 
         return new_state
 
@@ -104,8 +123,8 @@ class HeunMethod(StepFunction):
     Heun method for ODE integration.
     """
 
-    def __init__(self):
-        super(HeunMethod, self).__init__()
+    def __init__(self, output_format: Text = VARIABLES):
+        super(HeunMethod, self).__init__(output_format=output_format)
         self.order = 1
         self.ks = np.zeros((1, 2))
 
@@ -113,13 +132,14 @@ class HeunMethod(StepFunction):
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
-        if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
+        if not is_scalar(y) and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 4))
 
         hs = 0.5 * h
@@ -129,10 +149,7 @@ class HeunMethod(StepFunction):
         ks[:, 1] = model(t + h, ks[:, 0], **kwargs)
         y_new = y + hs * np.sum(ks, axis=1)
 
-        if return_format == "zipped":
-            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
-        else:
-            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -142,8 +159,8 @@ class RungeKutta4(StepFunction):
     Classic Runge Kutta of order 4 for ODE integration.
     """
 
-    def __init__(self):
-        super(RungeKutta4, self).__init__()
+    def __init__(self, output_format: Text = VARIABLES):
+        super(RungeKutta4, self).__init__(output_format=output_format)
 
         self.order = 4
         self.gammas = np.array([1.0, 2.0, 2.0, 1.0]) / 6
@@ -153,12 +170,13 @@ class RungeKutta4(StepFunction):
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                input_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
-        if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
+        if not is_scalar(y) and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 4))
 
         # notation follows that in
@@ -173,10 +191,7 @@ class RungeKutta4(StepFunction):
 
         y_new = y + h * np.sum(ks * self.gammas, axis=1)
 
-        if return_format == "zipped":
-            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
-        else:
-            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -187,8 +202,8 @@ class DOPRI5(StepFunction):
     dict with an approximation of order 5 in the step size.
     """
 
-    def __init__(self):
-        super(DOPRI5, self).__init__()
+    def __init__(self, output_format: Text = VARIABLES):
+        super(DOPRI5, self).__init__(output_format=output_format)
         self.order = 5
         self.ks = np.zeros((1, 6))
 
@@ -210,13 +225,14 @@ class DOPRI5(StepFunction):
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
-        if hasattr(y, "__len__") and len(y) != self.ks.shape[0]:
+        if not is_scalar(y) and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), 6))
 
         hs = self.alphas * h
@@ -242,10 +258,7 @@ class DOPRI5(StepFunction):
         # step size estimation does not happen here
         y_new = y + h * np.sum(ks * self.gammas, axis=1)
 
-        if return_format == "zipped":
-            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
-        else:
-            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
 
         return new_state
 
@@ -273,8 +286,8 @@ class ImplicitEulerMethod(StepFunction):
     """
     Implicit Euler Method for ODE solving.
     """
-    def __init__(self, **kwargs):
-        super(ImplicitEulerMethod, self).__init__()
+    def __init__(self, output_format: Text = VARIABLES, **kwargs):
+        super(ImplicitEulerMethod, self).__init__(output_format=output_format)
         self.order = 1
 
         # Runge-Kutta specific variables
@@ -289,23 +302,23 @@ class ImplicitEulerMethod(StepFunction):
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                input_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
-        if hasattr(y, "__len__") and len(y) != len(self.k):
+        if not is_scalar(y) and len(y) != len(self.k):
             self.k = np.zeros(len(y))
 
         def F(x, *args) -> Union[np.ndarray, float]:
-            # kwargs are not allowed in scipy.optimize.root, so
-            # pass tuple instead
+            # kwargs are not allowed in scipy.optimize, so pass tuple instead
             return y + h * model(t + h, x, *args) - x
 
         # this bit is important to sort the kwargs before putting them into
         # the tuple passed to root
-        model_spec = inspect.getfullargspec(model.ode_fn).args[2:]
+        # model_spec = inspect.getfullargspec(model.ode_fn).args[2:]
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
         else:
@@ -319,10 +332,7 @@ class ImplicitEulerMethod(StepFunction):
 
         y_new = root_res.x
 
-        if return_format == "zipped":
-            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
-        else:
-            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state_dict(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -332,8 +342,9 @@ class AdamsBashforth2(StepFunction):
     Adams-Bashforth Method of order 2 for ODE solving.
     """
 
-    def __init__(self, startup: StepFunction):
-        super(AdamsBashforth2, self).__init__()
+    def __init__(self, startup: StepFunction,
+                 output_format: Text = VARIABLES):
+        super(AdamsBashforth2, self).__init__(output_format=output_format)
         self.order = 2
 
         # startup calculation variables, only for multistep methods
@@ -359,12 +370,14 @@ class AdamsBashforth2(StepFunction):
                                     state_dict: Dict[Text,
                                                      Union[np.ndarray, float]],
                                     h: float,
+                                    input_format: Text = VARIABLES,
                                     **kwargs):
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
-        if hasattr(y, "__len__") and len(y) != self.y_cache.shape[0]:
+        if not is_scalar(y) and len(y) != self.y_cache.shape[0]:
             self.y_cache = np.zeros((len(y), 2))
 
         self.t_cache[0], self.y_cache[:, 0] = t, y
@@ -373,7 +386,8 @@ class AdamsBashforth2(StepFunction):
                                              h=h, **kwargs)
 
         t1, y1 = self.get_data_from_state_dict(model=model,
-                                               state_dict=startup_state)
+                                               state_dict=startup_state,
+                                               input_format=input_format)
 
         self.t_cache[1], self.y_cache[:, 1] = t1, y1
 
@@ -383,11 +397,14 @@ class AdamsBashforth2(StepFunction):
 
         self.ready = True
 
+    def return_from_cache(self):
+        pass
+
     def forward(self,
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                return_format: Text = "variables",
+                input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         if not self.ready:
@@ -399,24 +416,23 @@ class AdamsBashforth2(StepFunction):
 
             y_new = self.y_cache[:, -1]
 
-            if return_format == "zipped":
-                new_state = self.make_zipped_dict(model=model,
-                                                  t=self.t_cache[-1],
-                                                  y=y_new)
-            else:
-                new_state = self.make_state_dict(model=model,
+            new_state = self.make_new_state_dict(model=model,
                                                  t=self.t_cache[-1],
                                                  y=y_new)
 
             return new_state
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict)
+                                             state_dict=state_dict,
+                                             input_format=input_format)
 
         # TODO: Decide here whether to return cached values based on
         #  the condition t <= self.t_cache[-1]. Return the last cached value
         #  with t < self.t_cache[i]. This is O(n), but n is small
         #  (order of method) so what gives
+        # if t <= self.t_cache[-1]:
+        #     idx_to_return = np.argmin(np.abs(self.t_cache - t))
+        #     y_new =
 
         y_new = y + h * np.sum(self.b_coeffs * self.f_cache, axis=1)
 
@@ -428,9 +444,6 @@ class AdamsBashforth2(StepFunction):
         self.y_cache[:, -1] = y_new
         self.f_cache[:, -1] = model(t + h, y_new, **kwargs)
 
-        if return_format == "zipped":
-            new_state = self.make_zipped_dict(model=model, t=t+h, y=y_new)
-        else:
-            new_state = self.make_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state_dict(model=model, t=t + h, y=y_new)
 
         return new_state

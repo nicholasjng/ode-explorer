@@ -75,13 +75,14 @@ class StepFunction:
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         raise NotImplementedError
 
+
 class ExplicitRungeKuttaMethod(StepFunction):
-    def __init(self,
-               alphas: np.ndarray,
-               betas: np.ndarray,
-               gammas: np.ndarray,
-               output_format: Text = VARIABLES,
-               order: int = 0):
+    def __init__(self,
+                 alphas: np.ndarray,
+                 betas: np.ndarray,
+                 gammas: np.ndarray,
+                 output_format: Text = VARIABLES,
+                 order: int = 0):
 
         super(ExplicitRungeKuttaMethod, self).__init__(output_format,
                                                        order)
@@ -109,10 +110,16 @@ class ExplicitRungeKuttaMethod(StepFunction):
             _error_msg.append("Betas must be a quadratic matrix with the same "
                               "dimension as the alphas/gammas array")
 
+        # for an explicit method, betas must be lower triangular
+        if not np.allclose(betas, np.tril(betas, k=-1)):
+            _error_msg.append("The beta matrix has to be lower triangular for "
+                              "an explicit Runge-Kutta method, i.e. "
+                              "b_ij = 0 for i <= j")
+
         if _error_msg:
-            raise ValueError("Error while validating the input Butcher "
-                             "tableau. More information: "
-                             "{}".format(",".join(_error_msg)))
+            raise ValueError("An error occurred while validating the input "
+                             "Butcher tableau. More information: "
+                             "{}.".format(",".join(_error_msg)))
 
     def forward(self,
                 model: ODEModel,
@@ -120,6 +127,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
+
         t, y = self.get_data_from_state_dict(model=model,
                                              state_dict=state_dict,
                                              input_format=input_format)
@@ -136,7 +144,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
         for i in range(self.num_stages):
             # first row of betas is a zero row
             # because it is an explicit RK
-            ks[:, i] = model(t + ha[i], y + ha[i] * self.betas[i] * ks)
+            ks[:, i] = model(t + ha[i], y + ha[i] * ks.dot(self.betas[i]))
 
         y_new = y + np.sum(ks * hg, axis=1)
 

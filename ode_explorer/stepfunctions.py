@@ -1,6 +1,7 @@
 import numpy as np
 # import inspect
 # import bisect
+from math import isclose
 from typing import Dict, Text, Union
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import ZIPPED, VARIABLES
@@ -397,8 +398,14 @@ class AdamsBashforth2(StepFunction):
 
         self.ready = True
 
-    def return_from_cache(self):
-        pass
+    def get_cached_values(self, t: float):
+        eps = 1e-15
+        closest_in_cache = np.isclose(self.t_cache, t)
+        idx = np.argmax(closest_in_cache) + 1
+        if not any(closest_in_cache):
+            idx = np.argmax(self.t_cache > t + eps)
+
+        return self.t_cache[idx], self.y_cache[idx]
 
     def forward(self,
                 model: ODEModel,
@@ -414,7 +421,7 @@ class AdamsBashforth2(StepFunction):
                                              state_dict=state_dict, h=h,
                                              **kwargs)
 
-            y_new = self.y_cache[:, -1]
+            y_new = self.y_cache[:, 1]
 
             new_state = self.make_new_state_dict(model=model,
                                                  t=self.t_cache[-1],
@@ -426,13 +433,13 @@ class AdamsBashforth2(StepFunction):
                                              state_dict=state_dict,
                                              input_format=input_format)
 
-        # TODO: Decide here whether to return cached values based on
-        #  the condition t <= self.t_cache[-1]. Return the last cached value
-        #  with t < self.t_cache[i]. This is O(n), but n is small
-        #  (order of method) so what gives
-        # if t <= self.t_cache[-1]:
-        #     idx_to_return = np.argmin(np.abs(self.t_cache - t))
-        #     y_new =
+        # this branch kinda sucks
+        if t < self.t_cache[-1] and not isclose(t, self.t_cache[-1]):
+            t_new, y_new = self.get_cached_values(t)
+
+            new_state = self.make_new_state_dict(model=model, t=t_new, y=y_new)
+
+            return new_state
 
         y_new = y + h * np.sum(self.b_coeffs * self.f_cache, axis=1)
 

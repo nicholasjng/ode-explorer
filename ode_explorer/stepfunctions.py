@@ -1,95 +1,22 @@
 import numpy as np
 # import inspect
-# import bisect
-from math import isclose
 from typing import Dict, Text, Union
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import ZIPPED, VARIABLES
+from ode_explorer.templates import StepFunction
 from utils.data_utils import is_scalar
 
 from scipy.optimize import root, root_scalar
 # import jax.numpy as jnp
 # from jax import grad, jit, vmap
 
-__all__ = ["StepFunction",
-           "EulerMethod",
+__all__ = ["EulerMethod",
            "HeunMethod",
            "RungeKutta4",
            "DOPRI5",
            "DOPRI45",
            "ImplicitEulerMethod",
            "AdamsBashforth2"]
-
-
-class StepFunction:
-    """
-    Base class for all ODE step functions.
-    """
-
-    def __init__(self, output_format: Text = VARIABLES, order: int = 0):
-        # order of the method
-        self.order = order
-        if output_format not in [VARIABLES, ZIPPED]:
-            raise ValueError(f"Error: Output format {output_format} not "
-                             f"understood.")
-        self.output_format = output_format
-
-    @staticmethod
-    def get_data_from_state_dict(model: ODEModel,
-                                 state_dict: Dict[Text,
-                                                  Union[np.ndarray, float]],
-                                 input_format: Text):
-
-        t = state_dict.pop(model.indep_name)
-
-        # at this point, t is removed from the dict
-        # and only the state is left
-        if input_format == VARIABLES:
-            y = state_dict[model.variable_names[0]]
-        elif input_format == ZIPPED:
-            y = np.array(list(state_dict.values()))
-        else:
-            raise ValueError(f"Error: Input format {input_format} not "
-                             f"understood.")
-
-        # scalar ODE, return just the value then
-        if not is_scalar(y) and len(y) == 1:
-            return t, y[0]
-
-        return t, y
-
-    @staticmethod
-    def make_zipped_dict(model: ODEModel, t: float,
-                         y: Union[np.ndarray, float]):
-        if is_scalar(y):
-            y_new = [y]
-        else:
-            y_new = y
-
-        return {**{model.indep_name: t},
-                **dict(zip(model.dim_names, y_new))}
-
-    @staticmethod
-    def make_state_dict(model: ODEModel, t: float,
-                        y: Union[np.ndarray, float]):
-        return {model.indep_name: t, model.variable_names[0]: y}
-
-    def make_new_state_dict(self, model: ODEModel, t: float,
-                            y: Union[np.ndarray, float]):
-
-        if self.output_format == ZIPPED:
-            return self.make_zipped_dict(model=model, t=t, y=y)
-        else:
-            return self.make_state_dict(model=model, t=t, y=y)
-
-
-    def forward(self,
-                model: ODEModel,
-                state: Dict[Text, Union[np.ndarray, float]],
-                h: float,
-                return_format: Text = VARIABLES,
-                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-        raise NotImplementedError
 
 
 class EulerMethod(StepFunction):
@@ -433,8 +360,8 @@ class AdamsBashforth2(StepFunction):
                                              state_dict=state_dict,
                                              input_format=input_format)
 
-        # this branch kinda sucks
-        if t < self.t_cache[-1] and not isclose(t, self.t_cache[-1]):
+        # TODO: this branch is curious
+        if t < self.t_cache[-1]:
             t_new, y_new = self.get_cached_values(t)
 
             new_state = self.make_new_state_dict(model=model, t=t_new, y=y_new)

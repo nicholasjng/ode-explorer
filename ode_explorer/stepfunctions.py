@@ -360,8 +360,9 @@ class AdamsBashforth2(StepFunction):
                                              state_dict=state_dict,
                                              input_format=input_format)
 
-        # TODO: this branch is curious
-        if t < self.t_cache[-1]:
+        # This branch is curious
+        eps = 1e-12
+        if t + eps < self.t_cache[-1]:
             t_new, y_new = self.get_cached_values(t)
 
             new_state = self.make_new_state_dict(model=model, t=t_new, y=y_new)

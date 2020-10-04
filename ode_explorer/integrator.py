@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from typing import Dict, Callable, Text, Any, List
-from ode_explorer.stepfunctions import StepFunction
+from ode_explorer.templates import StepFunction
 from ode_explorer.model import ODEModel
 from utils.data_utils import write_to_file, convert_to_zipped
 from utils.data_utils import infer_dict_format

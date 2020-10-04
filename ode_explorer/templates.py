@@ -4,7 +4,7 @@ from ode_explorer.model import ODEModel
 from ode_explorer.constants import VARIABLES, ZIPPED
 from typing import Text, Dict, Union
 from utils.data_utils import is_scalar
-
+from scipy.optimize import root, root_scalar
 
 class StepFunction:
     """
@@ -133,7 +133,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
                                              input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            self.ks = np.zeros((len(y), 4))
+            self.ks = np.zeros((len(y), self.num_stages))
 
         ha = self.alphas * h
         hg = self.gammas * h
@@ -147,6 +147,113 @@ class ExplicitRungeKuttaMethod(StepFunction):
             ks[:, i] = model(t + ha[i], y + ha[i] * ks.dot(self.betas[i]))
 
         y_new = y + np.sum(ks * hg, axis=1)
+
+        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+
+        return new_state
+
+
+class ImplicitRungeKuttaMethod(StepFunction):
+    def __init__(self,
+                 alphas: np.ndarray,
+                 betas: np.ndarray,
+                 gammas: np.ndarray,
+                 output_format: Text = VARIABLES,
+                 order: int = 0,
+                 **kwargs):
+
+        super(ImplicitRungeKuttaMethod, self).__init__(output_format,
+                                                       order)
+
+        self.validate_butcher_tableau(alphas=alphas, betas=betas,
+                                      gammas=gammas)
+
+        self.alphas = alphas
+        self.betas = betas
+        self.gammas = gammas
+        self.order = order
+        self.num_stages = len(self.alphas)
+        self.ks = np.zeros((1, betas.shape[0]))
+
+        # scipy.optimize.root options
+        self.solver_kwargs = kwargs
+
+    @staticmethod
+    def validate_butcher_tableau(alphas: np.ndarray,
+                                 betas: np.ndarray,
+                                 gammas: np.ndarray) -> None:
+        _error_msg = []
+        if len(alphas) != len(gammas):
+            _error_msg.append("Alpha and gamma vectors are "
+                              "not the same length")
+
+        if betas.shape[0] != betas.shape[1]:
+            _error_msg.append("Betas must be a quadratic matrix with the same "
+                              "dimension as the alphas/gammas array")
+
+        if _error_msg:
+            raise ValueError("An error occurred while validating the input "
+                             "Butcher tableau. More information: "
+                             "{}.".format(",".join(_error_msg)))
+
+    def forward(self,
+                model: ODEModel,
+                state_dict: Dict[Text, Union[np.ndarray, float]],
+                h: float,
+                input_format: Text = VARIABLES,
+                **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
+
+        t, y = self.get_data_from_state_dict(model=model,
+                                             state_dict=state_dict,
+                                             input_format=input_format)
+
+        if not is_scalar(y) and len(y) != self.ks.shape[0]:
+            self.ks = np.zeros((len(y), self.num_stages))
+
+        ha = self.alphas * h
+        hb = self.betas * h
+        hg = self.gammas * h
+        ks = self.ks
+
+        n, m = ks.shape
+
+        def F(x: np.ndarray, *args) -> np.ndarray:
+
+            # kwargs are not allowed in scipy.optimize, so pass tuple instead
+            # TODO: Vectorizing this needs to happen in JAX, that would be
+            #  amazing. Also adding a Jacobian
+            model_stack = np.hstack(model(t + ha[i],
+                                          x.reshape((n, m)).dot(hb[i]),
+                                          *args) for i in range(m))
+
+            return model_stack - x
+
+        # modified function in case of using Implicit Euler method or
+        # equivalents on a scalar ODE
+        def F_scalar(x: float, *args) -> float:
+            return model(t + ha[0], y + hb[0] * x, *args) - x
+
+        # this bit is important to sort the kwargs before putting them into
+        # the tuple passed to root
+        # model_spec = inspect.getfullargspec(model.ode_fn).args[2:]
+        if kwargs:
+            args = tuple(kwargs[arg] for arg in model.fn_args.keys())
+        else:
+            args = ()
+
+        if n * m != 1:
+            # TODO: Retry here in case of convergence failure?
+            root_res = root(F, x0=ks.reshape((n*m,)),
+                            args=args, **self.solver_kwargs)
+            # this line ensures that np.sum returns a scalar for a scalar ODE
+            axis = None if is_scalar(y) else 1
+
+            y_new = y + np.sum(root_res.x.reshape((n, m)) * hg, axis=axis)
+
+        else:
+            root_res = root_scalar(F_scalar, args=args, **self.solver_kwargs)
+
+            y_new = y + h * root_res.x
 
         new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
 

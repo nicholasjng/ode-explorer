@@ -1,3 +1,3 @@
-This is the description for the explode Python package,
-a small library designed for fast solving and prototyping 
+This is the description for the ode-explorer Python package,
+a small library designed for solving, fast prototyping and visualization
 of systems of ordinary differential equations (ODEs).

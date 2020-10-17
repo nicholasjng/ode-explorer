@@ -3,12 +3,19 @@ import os
 import datetime
 import copy
 import logging
+import numpy as np
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from typing import Dict, Callable, Text, Any, List
+from typing import Dict, Callable, Text, List, Union
+
 from ode_explorer.templates import StepFunction
 from ode_explorer.model import ODEModel
+from ode_explorer.callbacks import Callback
+from ode_explorer.metrics import Metric
+from ode_explorer.constants import DYNAMIC_MAX_STEPS, DYNAMIC_INITIAL_H
+from ode_explorer.stepsizecontroller import StepsizeController
+
 from utils.data_utils import write_to_file, convert_to_zipped
 from utils.data_utils import infer_dict_format
 
@@ -23,8 +30,8 @@ class Integrator:
     def __init__(self,
                  step_func: StepFunction,
                  pre_step_hook: Callable = None,
-                 callbacks: List[Callable] = None,
-                 metrics: List[Callable] = None,
+                 callbacks: List[Callback] = None,
+                 metrics: List[Metric] = None,
                  log_dir: Text = None,
                  logfile_name: Text = None,
                  data_output_dir: Text = None,
@@ -52,7 +59,7 @@ class Integrator:
 
         self.logger = None
 
-        self.setup_logger(log_dir=self.log_dir)
+        self.set_up_logger(log_dir=self.log_dir)
 
         self.data_dir = data_output_dir or os.path.join(os.getcwd(), "results")
 
@@ -61,10 +68,10 @@ class Integrator:
     def _reset_step_counter(self):
         self._step_count = 0
 
-    def add_callbacks(self, callback_list: List[Callable]):
+    def add_callbacks(self, callback_list: List[Callback]):
         self.callbacks = self.callbacks + callback_list
 
-    def add_metrics(self, metric_list: List[Callable]):
+    def add_metrics(self, metric_list: List[Metric]):
         self.metrics = self.metrics + metric_list
 
     def write_data_to_file(self, model, data_outfile: Text = None):
@@ -73,7 +80,7 @@ class Integrator:
 
         write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
-    def setup_logger(self, log_dir):
+    def set_up_logger(self, log_dir):
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
@@ -91,7 +98,7 @@ class Integrator:
 
     def integrate_const(self,
                         model: ODEModel,
-                        initial_state: Dict[Text, Any],
+                        initial_state: Dict[Text, Union[np.ndarray, float]],
                         end: float = None,
                         h: float = None,
                         num_steps: int = None,
@@ -114,9 +121,6 @@ class Integrator:
 
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
-
-        if not flush_data_every:
-            flush_data_every = num_steps + 2
 
         # arg checks for time stepping
         stepping_data = [bool(end), bool(h), bool(num_steps)]
@@ -151,6 +155,9 @@ class Integrator:
                             "a negative affect on accuracy.")
         elif not num_steps:
             num_steps = int((end - start) / h)
+
+        if not flush_data_every:
+            flush_data_every = num_steps + 2
 
         # deepcopy here, otherwise the initial state gets overwritten
         state_dict = copy.deepcopy(initial_state)
@@ -202,6 +209,120 @@ class Integrator:
         if self.result_data:
             outfile_name = data_outfile or "run_" + \
                         datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+
+            self.write_data_to_file(model=model, data_outfile=data_outfile)
+
+            self.logger.info("Results written to file {}.".format(
+                os.path.join(self.log_dir, outfile_name)))
+
+        return self
+
+    def integrate_dynamically(self,
+                              model: ODEModel,
+                              initial_state: Dict[Text,
+                                                  Union[np.ndarray, float]],
+                              end: float,
+                              initial_h: float = None,
+                              max_steps: int = None,
+                              sc: Union[StepsizeController, Callable] = None,
+                              reset_step_counter: bool = True,
+                              verbosity: int = logging.INFO,
+                              data_outfile: Text = None,
+                              logfile: Text = None,
+                              flush_data_every: int = None):
+
+        # create file handlers if necessary
+        if logfile:
+            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
+            self.logger.addHandler(fh)
+            fh.setLevel(verbosity)
+
+        # initialize dimension names
+        model.initialize_dim_names(initial_state)
+
+        input_format = infer_dict_format(state_dict=initial_state, model=model)
+
+        for handler in self.logger.handlers:
+            handler.setLevel(verbosity)
+
+        start = float(initial_state[model.indep_name])
+
+        if start > end:
+            raise ValueError("The upper integration bound has to be larger "
+                             "than the starting value.")
+
+        if reset_step_counter:
+            self._reset_step_counter()
+
+        if not initial_h:
+            self.logger.warning(f"No maximum step count supplied, falling "
+                                f"back to builtin initial step size "
+                                f"of {DYNAMIC_INITIAL_H}.")
+            max_steps = DYNAMIC_INITIAL_H
+
+        if not max_steps:
+            self.logger.warning(f"No maximum step count supplied, falling "
+                                f"back to builtin maximum step count "
+                                f"of {DYNAMIC_MAX_STEPS}.")
+            max_steps = DYNAMIC_MAX_STEPS
+
+        flush_data_every = flush_data_every or max_steps + 2
+
+        # deepcopy here, otherwise the initial state gets overwritten
+        state_dict = copy.deepcopy(initial_state)
+        self.result_data.append(initial_state)
+
+        self.logger.info("Starting integration.")
+
+        # treat initial state as state 0
+        iterator = range(1, max_steps + 2)
+
+        if self.progress_bar:
+            # register to tqdm
+            iterator = tqdm(iterator)
+
+        h = initial_h
+
+        for i in iterator:
+            if self._pre_step_hook:
+                self._pre_step_hook()
+
+            updated_state_dict = self.step_func.forward(model, state_dict, h)
+
+            self.result_data.append(updated_state_dict)
+
+            if i % flush_data_every == 0:
+                self.write_data_to_file(data_outfile)
+                self.result_data = []
+
+            # execute the registered callbacks after the step
+            for callback in self.callbacks:
+                callback(self, model, locals())
+
+            metric_dict = {}
+            for metric in self.metrics:
+                metric_dict[metric.__name__] = metric(self, model, locals())
+
+            # adding the current time stamp
+            metric_dict.update({model.indep_name:
+                                updated_state_dict[model.indep_name]})
+
+            self.metric_data.append(metric_dict)
+
+            # update delayed after callback execution so that callbacks have
+            # access to both the previous and the current state
+            state_dict.update(updated_state_dict)
+
+            h = sc(self, model, locals())
+
+            self._step_count += 1
+
+        self.logger.info("Finished integration.")
+
+        if self.result_data:
+            outfile_name = data_outfile or "run_" + \
+                           datetime.datetime.now().strftime(
+                               '%Y-%m-%d-%H-%M-%S')
 
             self.write_data_to_file(model=model, data_outfile=data_outfile)
 

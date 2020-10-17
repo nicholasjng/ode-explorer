@@ -6,7 +6,7 @@ from typing import Dict, Text, Any
 
 
 class Callback:
-    def __call__(self, integrator: Integrator, model: ODEModel,
+    def __call__(self, i: int, integrator: Integrator, model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
         raise NotImplementedError
 
@@ -22,7 +22,7 @@ class NaNChecker(Callback):
                              f"Options are: {error_options}")
         self.errors = errors
 
-    def __call__(self, integrator: Integrator, model: ODEModel,
+    def __call__(self, i: int, integrator: Integrator, model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
 
         state_dict = locals["state_dict"]

@@ -20,8 +20,7 @@ class ODEModel:
                  dim_names: List[Text] = None):
 
         # ODE function, right hand side of y' = f(t,y)
-        if not any([bool(module_path), bool(ode_fn_name),
-                    bool(ode_fn)]):
+        if not any([bool(module_path), bool(ode_fn_name), bool(ode_fn)]):
             raise ValueError("Missing model information. Supply a right hand "
                              "side f(t,y) either by specifying a source path "
                              "or a callable function.")

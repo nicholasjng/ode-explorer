@@ -4,7 +4,10 @@ from typing import Dict, Text, Any
 
 
 class StepsizeController:
-    def __call__(self, i: int, integrator: Integrator, model: ODEModel,
+    def __call__(self,
+                 i: int,
+                 integrator: Integrator,
+                 model: ODEModel,
                  locals: Dict[Text, Any]) -> float:
         raise NotImplementedError
 

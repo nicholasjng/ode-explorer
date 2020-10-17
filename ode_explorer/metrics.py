@@ -6,7 +6,10 @@ from typing import Dict, Text, Any, Callable
 
 
 class Metric:
-    def __call__(self, i: int, integrator: Integrator, model: ODEModel,
+    def __call__(self,
+                 i: int,
+                 integrator: Integrator,
+                 model: ODEModel,
                  locals: Dict[Text, Any]) -> Any:
         raise NotImplementedError
 
@@ -24,7 +27,10 @@ class DistanceToSolution(Metric):
         self.norm = norm or 2
         self.name = name or "solution_distance"
 
-    def __call__(self, i: int, integrator: Integrator, model: ODEModel,
+    def __call__(self,
+                 i: int,
+                 integrator: Integrator,
+                 model: ODEModel,
                  locals: Dict[Text, Any]) -> Any:
 
         updated_state = locals["updated_state_dict"]

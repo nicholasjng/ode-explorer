@@ -41,7 +41,7 @@ class EulerMethod(StepFunction):
 
         y_new = y + h * model(t, y, **kwargs)
 
-        new_state = self.make_new_state_dict(model=model, y=y_new, t=t+h)
+        new_state = self.make_new_state(model=model, y=y_new, t=t + h)
 
         return new_state
 
@@ -77,7 +77,7 @@ class HeunMethod(StepFunction):
         ks[:, 1] = model(t + h, ks[:, 0], **kwargs)
         y_new = y + hs * np.sum(ks, axis=1)
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -119,7 +119,7 @@ class RungeKutta4(StepFunction):
 
         y_new = y + h * np.sum(ks * self.gammas, axis=1)
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -186,7 +186,7 @@ class DOPRI5(StepFunction):
         # step size estimation does not happen here
         y_new = y + h * np.sum(ks * self.gammas, axis=1)
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -260,7 +260,7 @@ class ImplicitEulerMethod(StepFunction):
 
         y_new = root_res.x
 
-        new_state = self.make_new_state_dict(model=model, t=t + h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -350,9 +350,9 @@ class AdamsBashforth2(StepFunction):
 
             y_new = self.y_cache[:, 1]
 
-            new_state = self.make_new_state_dict(model=model,
-                                                 t=self.t_cache[-1],
-                                                 y=y_new)
+            new_state = self.make_new_state(model=model,
+                                            t=self.t_cache[-1],
+                                            y=y_new)
 
             return new_state
 
@@ -365,7 +365,7 @@ class AdamsBashforth2(StepFunction):
         if t + eps < self.t_cache[-1]:
             t_new, y_new = self.get_cached_values(t)
 
-            new_state = self.make_new_state_dict(model=model, t=t_new, y=y_new)
+            new_state = self.make_new_state(model=model, t=t_new, y=y_new)
 
             return new_state
 
@@ -379,6 +379,6 @@ class AdamsBashforth2(StepFunction):
         self.y_cache[:, -1] = y_new
         self.f_cache[:, -1] = model(t + h, y_new, **kwargs)
 
-        new_state = self.make_new_state_dict(model=model, t=t + h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state

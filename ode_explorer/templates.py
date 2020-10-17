@@ -64,8 +64,8 @@ class StepFunction:
                         y: Union[np.ndarray, float]):
         return {model.indep_name: t, model.variable_names[0]: y}
 
-    def make_new_state_dict(self, model: ODEModel, t: float,
-                            y: Union[np.ndarray, float]):
+    def make_new_state(self, model: ODEModel, t: float,
+                       y: Union[np.ndarray, float]):
 
         if self.output_format == ZIPPED:
             return self.make_zipped_dict(model=model, t=t, y=y)
@@ -153,7 +153,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
 
         y_new = y + np.sum(ks * hg, axis=1)
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -260,7 +260,7 @@ class ImplicitRungeKuttaMethod(StepFunction):
 
             y_new = y + hg[0] * root_res.x
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -360,9 +360,9 @@ class ExplicitMultistepMethod(StepFunction):
             # first cached value
             y_new = self.y_cache[:, 1]
 
-            new_state = self.make_new_state_dict(model=model,
-                                                 t=self.t_cache[1],
-                                                 y=y_new)
+            new_state = self.make_new_state(model=model,
+                                            t=self.t_cache[1],
+                                            y=y_new)
 
             return new_state
 
@@ -375,7 +375,7 @@ class ExplicitMultistepMethod(StepFunction):
         if t + eps < self.t_cache[-1]:
             t_new, y_new = self.get_cached_values(t)
 
-            new_state = self.make_new_state_dict(model=model, t=t_new, y=y_new)
+            new_state = self.make_new_state(model=model, t=t_new, y=y_new)
 
             return new_state
 
@@ -389,7 +389,7 @@ class ExplicitMultistepMethod(StepFunction):
         self.y_cache[:, -1] = y_new
         self.f_cache[:, -1] = model(t + h, y_new, **kwargs)
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state
 
@@ -493,9 +493,9 @@ class ImplicitMultistepMethod(StepFunction):
             # first cached value
             y_new = self.y_cache[:, 1]
 
-            new_state = self.make_new_state_dict(model=model,
-                                                 t=self.t_cache[1],
-                                                 y=y_new)
+            new_state = self.make_new_state(model=model,
+                                            t=self.t_cache[1],
+                                            y=y_new)
 
             return new_state
 
@@ -508,7 +508,7 @@ class ImplicitMultistepMethod(StepFunction):
         if t + eps < self.t_cache[-1]:
             t_new, y_new = self.get_cached_values(t)
 
-            new_state = self.make_new_state_dict(model=model, t=t_new, y=y_new)
+            new_state = self.make_new_state(model=model, t=t_new, y=y_new)
 
             return new_state
 
@@ -535,6 +535,6 @@ class ImplicitMultistepMethod(StepFunction):
         self.y_cache[:, -1] = y_new
         self.f_cache[:, -1] = model(t + h, y_new, **kwargs)
 
-        new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
+        new_state = self.make_new_state(model=model, t=t + h, y=y_new)
 
         return new_state

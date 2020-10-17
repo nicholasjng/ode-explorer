@@ -1,10 +1,15 @@
 import numpy as np
+import logging
 
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import VARIABLES, ZIPPED
 from typing import Text, Dict, Union
 from utils.data_utils import is_scalar
 from scipy.optimize import root, root_scalar
+
+logging.basicConfig(level=logging.DEBUG)
+templates_logger = logging.getLogger("ode_explorer.templates")
+
 
 class StepFunction:
     """
@@ -253,7 +258,7 @@ class ImplicitRungeKuttaMethod(StepFunction):
         else:
             root_res = root_scalar(F_scalar, args=args, **self.solver_kwargs)
 
-            y_new = y + h * root_res.x
+            y_new = y + hg[0] * root_res.x
 
         new_state = self.make_new_state_dict(model=model, t=t+h, y=y_new)
 

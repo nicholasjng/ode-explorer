@@ -28,17 +28,11 @@ class Integrator:
     Base class for all ODE integrators.
     """
     def __init__(self,
-                 step_func: StepFunction,
                  pre_step_hook: Callable = None,
-                 callbacks: List[Callback] = None,
-                 metrics: List[Metric] = None,
                  log_dir: Text = None,
                  logfile_name: Text = None,
                  data_output_dir: Text = None,
                  progress_bar: bool = True):
-
-        # step function used to integrate a model
-        self.step_func = step_func
 
         # pre-step function, will be called before each step if specified
         self._pre_step_hook = pre_step_hook
@@ -48,10 +42,6 @@ class Integrator:
 
         # step count, can be used to track integration runs
         self._step_count = 0
-
-        # callbacks and metrics, to be executed/computed after the step
-        self.callbacks = callbacks or []
-        self.metrics = metrics or []
 
         self.log_dir = log_dir or os.path.join(os.getcwd(), "logs")
 
@@ -67,12 +57,6 @@ class Integrator:
 
     def _reset_step_counter(self):
         self._step_count = 0
-
-    def add_callbacks(self, callback_list: List[Callback]):
-        self.callbacks = self.callbacks + callback_list
-
-    def add_metrics(self, metric_list: List[Metric]):
-        self.metrics = self.metrics + metric_list
 
     def write_data_to_file(self, model, data_outfile: Text = None):
         data_outfile = data_outfile or "run_" + \
@@ -98,6 +82,7 @@ class Integrator:
 
     def integrate_const(self,
                         model: ODEModel,
+                        step_func: StepFunction,
                         initial_state: Dict[Text, Union[np.ndarray, float]],
                         end: float = None,
                         h: float = None,
@@ -106,7 +91,13 @@ class Integrator:
                         verbosity: int = 0,
                         data_outfile: Text = None,
                         logfile: Text = None,
-                        flush_data_every: int = None):
+                        flush_data_every: int = None,
+                        callbacks: List[Callback] = None,
+                        metrics: List[Metric] = None):
+
+        # callbacks and metrics, to be executed/computed after the step
+        callbacks = callbacks or []
+        metrics = metrics or []
 
         # create file handler
         if logfile:
@@ -176,7 +167,7 @@ class Integrator:
             if self._pre_step_hook:
                 self._pre_step_hook()
 
-            updated_state_dict = self.step_func.forward(model, state_dict, h)
+            updated_state_dict = step_func.forward(model, state_dict, h)
 
             self.result_data.append(updated_state_dict)
 
@@ -185,12 +176,12 @@ class Integrator:
                 self.result_data = []
 
             # execute the registered callbacks after the step
-            for callback in self.callbacks:
-                callback(self, model, locals())
+            for callback in callbacks:
+                callback(i, self, model, locals())
 
             metric_dict = {}
-            for metric in self.metrics:
-                metric_dict[metric.__name__] = metric(self, model, locals())
+            for metric in metrics:
+                metric_dict[metric.__name__] = metric(i, self, model, locals())
 
             # adding the current time stamp
             metric_dict.update({model.indep_name:
@@ -219,6 +210,7 @@ class Integrator:
 
     def integrate_dynamically(self,
                               model: ODEModel,
+                              step_func: StepFunction,
                               initial_state: Dict[Text,
                                                   Union[np.ndarray, float]],
                               end: float,
@@ -229,7 +221,9 @@ class Integrator:
                               verbosity: int = logging.INFO,
                               data_outfile: Text = None,
                               logfile: Text = None,
-                              flush_data_every: int = None):
+                              flush_data_every: int = None,
+                              callbacks: List[Callback] = None,
+                              metrics: List[Metric] = None):
 
         # create file handlers if necessary
         if logfile:
@@ -287,7 +281,7 @@ class Integrator:
             if self._pre_step_hook:
                 self._pre_step_hook()
 
-            updated_state_dict = self.step_func.forward(model, state_dict, h)
+            updated_state_dict = step_func.forward(model, state_dict, h)
 
             self.result_data.append(updated_state_dict)
 
@@ -296,7 +290,7 @@ class Integrator:
                 self.result_data = []
 
             # execute the registered callbacks after the step
-            for callback in self.callbacks:
+            for callback in callbacks:
                 callback(i, self, model, locals())
 
             # initialize with the current iteration number and time stamp
@@ -304,7 +298,7 @@ class Integrator:
                            model.indep_name:
                            updated_state_dict[model.indep_name]}
 
-            for metric in self.metrics:
+            for metric in metrics:
                 metric_dict[metric.__name__] = metric(i, self, model, locals())
 
             self.metric_data.append(metric_dict)

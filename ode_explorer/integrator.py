@@ -151,7 +151,7 @@ class Integrator:
             flush_data_every = num_steps + 2
 
         # deepcopy here, otherwise the initial state gets overwritten
-        state_dict = copy.deepcopy(initial_state)
+        state = copy.deepcopy(initial_state)
         self.result_data.append(initial_state)
 
         self.logger.info("Starting integration.")
@@ -167,9 +167,9 @@ class Integrator:
             if self._pre_step_hook:
                 self._pre_step_hook()
 
-            updated_state_dict = step_func.forward(model, state_dict, h)
+            updated_state = step_func.forward(model, state, h)
 
-            self.result_data.append(updated_state_dict)
+            self.result_data.append(updated_state)
 
             if i % flush_data_every == 0:
                 self.write_data_to_file(data_outfile)
@@ -177,22 +177,22 @@ class Integrator:
 
             # execute the registered callbacks after the step
             for callback in callbacks:
-                callback(i, state_dict, updated_state_dict, model, locals())
+                callback(i, state, updated_state, model, locals())
 
             metric_dict = {}
             for metric in metrics:
-                val = metric(i, state_dict, updated_state_dict, model, locals())
+                val = metric(i, state, updated_state, model, locals())
                 metric_dict[metric.__name__] = val
 
             # adding the current time stamp
             metric_dict.update({model.indep_name:
-                                updated_state_dict[model.indep_name]})
+                                updated_state[model.indep_name]})
 
             self.metric_data.append(metric_dict)
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
-            state_dict.update(updated_state_dict)
+            state.update(updated_state)
 
             self._step_count += 1
 
@@ -264,7 +264,7 @@ class Integrator:
         flush_data_every = flush_data_every or max_steps + 2
 
         # deepcopy here, otherwise the initial state gets overwritten
-        state_dict = copy.deepcopy(initial_state)
+        state = copy.deepcopy(initial_state)
         self.result_data.append(initial_state)
 
         self.logger.info("Starting integration.")
@@ -282,9 +282,9 @@ class Integrator:
             if self._pre_step_hook:
                 self._pre_step_hook()
 
-            updated_state_dict = step_func.forward(model, state_dict, h)
+            updated_state = step_func.forward(model, state, h)
 
-            self.result_data.append(updated_state_dict)
+            self.result_data.append(updated_state)
 
             if i % flush_data_every == 0:
                 self.write_data_to_file(data_outfile)
@@ -292,23 +292,23 @@ class Integrator:
 
             # execute the registered callbacks after the step
             for callback in callbacks:
-                callback(i, state_dict, updated_state_dict, model, locals())
+                callback(i, state, updated_state, model, locals())
 
             # initialize with the current iteration number and time stamp
             metric_dict = {"iteration": i,
                            model.indep_name:
-                           updated_state_dict[model.indep_name]}
+                           updated_state[model.indep_name]}
 
             for metric in metrics:
-                metric_dict[metric.__name__] = metric(i, state_dict, updated_state_dict, model, locals())
+                metric_dict[metric.__name__] = metric(i, state, updated_state, model, locals())
 
             self.metric_data.append(metric_dict)
 
-            h = sc(i, state_dict, updated_state_dict, model, locals())
+            h = sc(i, state, updated_state, model, locals())
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
-            state_dict.update(updated_state_dict)
+            state.update(updated_state)
 
             self._step_count += 1
 

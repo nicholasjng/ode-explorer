@@ -12,8 +12,8 @@ callback_logger = logging.getLogger("ode_explorer.callbacks.Callback")
 class Callback:
     def __call__(self,
                  i: int,
-                 state_dict: Dict[Text, Union[np.ndarray, float]],
-                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
+                 state: Dict[Text, Union[np.ndarray, float]],
+                 updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
         raise NotImplementedError
@@ -32,18 +32,18 @@ class NaNChecker(Callback):
 
     def __call__(self,
                  i: int,
-                 state_dict: Dict[Text, Union[np.ndarray, float]],
-                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
+                 state: Dict[Text, Union[np.ndarray, float]],
+                 updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
 
-        state_dict = locals["state_dict"]
-        updated_state_dict = locals["updated_state_dict"]
+        state = locals["state_dict"]
+        updated_state = locals["updated_state_dict"]
 
         # only check new state as old is assumed to be sensible,
         # i.e. not having nans
-        keys = list(updated_state_dict.keys())
-        y_new = np.array(updated_state_dict.values())
+        keys = list(updated_state.keys())
+        y_new = np.array(updated_state.values())
 
         na_mask = np.isnan(y_new)
         if np.any(na_mask):
@@ -69,7 +69,7 @@ class NaNChecker(Callback):
                 # get na_keys by na_mask
                 na_keys = [key for i, key in enumerate(keys) if na_mask[i]]
                 for na_key in na_keys:
-                    updated_state_dict[na_key] = self.replacement
+                    updated_state[na_key] = self.replacement
 
             else:  # ignore errors
                 callback_logger.warning("Encountered at least one NaN "

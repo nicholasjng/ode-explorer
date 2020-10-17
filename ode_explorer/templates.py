@@ -25,19 +25,18 @@ class StepFunction:
         self.output_format = output_format
 
     @staticmethod
-    def get_data_from_state_dict(model: ODEModel,
-                                 state_dict: Dict[Text,
-                                                  Union[np.ndarray, float]],
-                                 input_format: Text):
+    def get_data_from_state(model: ODEModel,
+                            state: Dict[Text, Union[np.ndarray, float]],
+                            input_format: Text):
 
-        t = state_dict.pop(model.indep_name)
+        t = state.pop(model.indep_name)
 
         # at this point, t is removed from the dict
         # and only the state is left
         if input_format == VARIABLES:
-            y = state_dict[model.variable_names[0]]
+            y = state[model.variable_names[0]]
         elif input_format == ZIPPED:
-            y = np.array(list(state_dict.values()))
+            y = np.array(list(state.values()))
         else:
             raise ValueError(f"Error: Input format {input_format} not "
                              f"understood.")
@@ -128,14 +127,14 @@ class ExplicitRungeKuttaMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
-        t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
-                                             input_format=input_format)
+        t, y = self.get_data_from_state(model=model,
+                                        state=state,
+                                        input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), self.num_stages))
@@ -203,14 +202,14 @@ class ImplicitRungeKuttaMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
-        t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
-                                             input_format=input_format)
+        t, y = self.get_data_from_state(model=model,
+                                        state=state,
+                                        input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
             self.ks = np.zeros((len(y), self.num_stages))
@@ -300,15 +299,15 @@ class ExplicitMultistepMethod(StepFunction):
         self.ready = False
 
     def perform_startup_calculation(self, model: ODEModel,
-                                    state_dict: Dict[Text,
+                                    state: Dict[Text,
                                                      Union[np.ndarray, float]],
                                     h: float,
                                     input_format: Text = VARIABLES,
                                     **kwargs):
 
-        t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
-                                             input_format=input_format)
+        t, y = self.get_data_from_state(model=model,
+                                        state=state,
+                                        input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.y_cache.shape[0]:
             self.y_cache = np.zeros((len(y), self.lookback))
@@ -317,15 +316,15 @@ class ExplicitMultistepMethod(StepFunction):
         # fill function evaluation cache
         self.f_cache[:, 0] = model(t, y, **kwargs)
 
-        dummy_dict = state_dict.copy()
+        dummy_dict = state.copy()
         for i in range(1, self.lookback):
             startup_state = self.startup.forward(model=model,
                                                  state_dict=dummy_dict,
                                                  h=h, **kwargs)
 
-            t1, y1 = self.get_data_from_state_dict(model=model,
-                                                   state_dict=startup_state,
-                                                   input_format=input_format)
+            t1, y1 = self.get_data_from_state(model=model,
+                                              state=startup_state,
+                                              input_format=input_format)
 
             self.t_cache[i], self.y_cache[:, i] = t1, y1
             self.f_cache[:, i] = model(t1, y1, **kwargs)
@@ -344,7 +343,7 @@ class ExplicitMultistepMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
@@ -353,7 +352,7 @@ class ExplicitMultistepMethod(StepFunction):
             # startup calculation to the multistep method,
             # fills the y-, t- and f-caches
             self.perform_startup_calculation(model=model,
-                                             state_dict=state_dict,
+                                             state=state,
                                              h=h,
                                              **kwargs)
 
@@ -366,9 +365,9 @@ class ExplicitMultistepMethod(StepFunction):
 
             return new_state
 
-        t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
-                                             input_format=input_format)
+        t, y = self.get_data_from_state(model=model,
+                                        state=state,
+                                        input_format=input_format)
 
         # This branch is curious
         eps = 1e-12
@@ -432,16 +431,17 @@ class ImplicitMultistepMethod(StepFunction):
         # multiple non-consecutive runs.
         self.ready = False
 
-    def perform_startup_calculation(self, model: ODEModel,
-                                    state_dict: Dict[Text,
+    def perform_startup_calculation(self,
+                                    model: ODEModel,
+                                    state: Dict[Text,
                                                      Union[np.ndarray, float]],
                                     h: float,
                                     input_format: Text = VARIABLES,
                                     **kwargs):
 
-        t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
-                                             input_format=input_format)
+        t, y = self.get_data_from_state(model=model,
+                                        state=state,
+                                        input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.y_cache.shape[0]:
             self.y_cache = np.zeros((len(y), self.lookback))
@@ -450,15 +450,15 @@ class ImplicitMultistepMethod(StepFunction):
         # fill function evaluation cache
         self.f_cache[:, 0] = model(t, y, **kwargs)
 
-        dummy_dict = state_dict.copy()
+        dummy_dict = state.copy()
         for i in range(1, self.lookback):
             startup_state = self.startup.forward(model=model,
-                                                 state_dict=dummy_dict,
+                                                 state=dummy_dict,
                                                  h=h, **kwargs)
 
-            t1, y1 = self.get_data_from_state_dict(model=model,
-                                                   state_dict=startup_state,
-                                                   input_format=input_format)
+            t1, y1 = self.get_data_from_state(model=model,
+                                              state=startup_state,
+                                              input_format=input_format)
 
             self.t_cache[i], self.y_cache[:, i] = t1, y1
             self.f_cache[:, i] = model(t1, y1, **kwargs)
@@ -477,7 +477,7 @@ class ImplicitMultistepMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
@@ -486,7 +486,7 @@ class ImplicitMultistepMethod(StepFunction):
             # startup calculation to the multistep method,
             # fills the y-, t- and f-caches
             self.perform_startup_calculation(model=model,
-                                             state_dict=state_dict,
+                                             state=state,
                                              h=h,
                                              **kwargs)
 
@@ -499,9 +499,9 @@ class ImplicitMultistepMethod(StepFunction):
 
             return new_state
 
-        t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
-                                             input_format=input_format)
+        t, y = self.get_data_from_state(model=model,
+                                        state=state,
+                                        input_format=input_format)
 
         # This branch is curious
         eps = 1e-12

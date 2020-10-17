@@ -7,8 +7,8 @@ from typing import Dict, Text, Any, Callable, Union
 class Metric:
     def __call__(self,
                  i: int,
-                 state_dict: Dict[Text, Union[np.ndarray, float]],
-                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
+                 state: Dict[Text, Union[np.ndarray, float]],
+                 updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> Any:
         raise NotImplementedError
@@ -29,8 +29,8 @@ class DistanceToSolution(Metric):
 
     def __call__(self,
                  i: int,
-                 state_dict: Dict[Text, Union[np.ndarray, float]],
-                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
+                 state: Dict[Text, Union[np.ndarray, float]],
+                 updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> Any:
 

@@ -30,13 +30,13 @@ class EulerMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
+                                             state_dict=state,
                                              input_format=input_format)
 
         y_new = y + h * model(t, y, **kwargs)
@@ -58,13 +58,13 @@ class HeunMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
+                                             state_dict=state,
                                              input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
@@ -96,12 +96,12 @@ class RungeKutta4(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
+                                             state_dict=state,
                                              input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
@@ -151,13 +151,13 @@ class DOPRI5(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
+                                             state_dict=state,
                                              input_format=input_format)
 
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
@@ -203,7 +203,7 @@ class DOPRI45(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 return_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
@@ -228,13 +228,13 @@ class ImplicitEulerMethod(StepFunction):
 
     def forward(self,
                 model: ODEModel,
-                state_dict: Dict[Text, Union[np.ndarray, float]],
+                state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
                 input_format: Text = "variables",
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state_dict(model=model,
-                                             state_dict=state_dict,
+                                             state_dict=state,
                                              input_format=input_format)
 
         if not is_scalar(y) and len(y) != len(self.k):

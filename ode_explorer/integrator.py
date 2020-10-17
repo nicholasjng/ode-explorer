@@ -177,11 +177,12 @@ class Integrator:
 
             # execute the registered callbacks after the step
             for callback in callbacks:
-                callback(i, self, model, locals())
+                callback(i, state_dict, updated_state_dict, model, locals())
 
             metric_dict = {}
             for metric in metrics:
-                metric_dict[metric.__name__] = metric(i, self, model, locals())
+                val = metric(i, state_dict, updated_state_dict, model, locals())
+                metric_dict[metric.__name__] = val
 
             # adding the current time stamp
             metric_dict.update({model.indep_name:
@@ -211,12 +212,12 @@ class Integrator:
     def integrate_dynamically(self,
                               model: ODEModel,
                               step_func: StepFunction,
+                              sc: Union[StepsizeController, Callable],
                               initial_state: Dict[Text,
                                                   Union[np.ndarray, float]],
                               end: float,
                               initial_h: float = None,
                               max_steps: int = None,
-                              sc: Union[StepsizeController, Callable] = None,
                               reset_step_counter: bool = True,
                               verbosity: int = logging.INFO,
                               data_outfile: Text = None,
@@ -228,8 +229,8 @@ class Integrator:
         # create file handlers if necessary
         if logfile:
             fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
-            self.logger.addHandler(fh)
             fh.setLevel(verbosity)
+            self.logger.addHandler(fh)
 
         # initialize dimension names
         model.initialize_dim_names(initial_state)
@@ -239,14 +240,14 @@ class Integrator:
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
 
+        if reset_step_counter:
+            self._reset_step_counter()
+
         start = float(initial_state[model.indep_name])
 
         if start > end:
             raise ValueError("The upper integration bound has to be larger "
                              "than the starting value.")
-
-        if reset_step_counter:
-            self._reset_step_counter()
 
         if not initial_h:
             self.logger.warning(f"No maximum step count supplied, falling "
@@ -291,7 +292,7 @@ class Integrator:
 
             # execute the registered callbacks after the step
             for callback in callbacks:
-                callback(i, self, model, locals())
+                callback(i, state_dict, updated_state_dict, model, locals())
 
             # initialize with the current iteration number and time stamp
             metric_dict = {"iteration": i,
@@ -299,15 +300,15 @@ class Integrator:
                            updated_state_dict[model.indep_name]}
 
             for metric in metrics:
-                metric_dict[metric.__name__] = metric(i, self, model, locals())
+                metric_dict[metric.__name__] = metric(i, state_dict, updated_state_dict, model, locals())
 
             self.metric_data.append(metric_dict)
+
+            h = sc(i, state_dict, updated_state_dict, model, locals())
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
             state_dict.update(updated_state_dict)
-
-            h = sc(i, self, model, locals())
 
             self._step_count += 1
 

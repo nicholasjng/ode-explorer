@@ -297,15 +297,15 @@ class Integrator:
 
             # execute the registered callbacks after the step
             for callback in self.callbacks:
-                callback(self, model, locals())
+                callback(i, self, model, locals())
 
-            metric_dict = {}
+            # initialize with the current iteration number and time stamp
+            metric_dict = {"iteration": i,
+                           model.indep_name:
+                           updated_state_dict[model.indep_name]}
+
             for metric in self.metrics:
-                metric_dict[metric.__name__] = metric(self, model, locals())
-
-            # adding the current time stamp
-            metric_dict.update({model.indep_name:
-                                updated_state_dict[model.indep_name]})
+                metric_dict[metric.__name__] = metric(i, self, model, locals())
 
             self.metric_data.append(metric_dict)
 
@@ -313,7 +313,7 @@ class Integrator:
             # access to both the previous and the current state
             state_dict.update(updated_state_dict)
 
-            h = sc(self, model, locals())
+            h = sc(i, self, model, locals())
 
             self._step_count += 1
 

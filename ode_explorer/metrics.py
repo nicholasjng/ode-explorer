@@ -1,14 +1,14 @@
 import numpy as np
-from ode_explorer.integrator import Integrator
 from ode_explorer.model import ODEModel
 
-from typing import Dict, Text, Any, Callable
+from typing import Dict, Text, Any, Callable, Union
 
 
 class Metric:
     def __call__(self,
                  i: int,
-                 integrator: Integrator,
+                 state_dict: Dict[Text, Union[np.ndarray, float]],
+                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> Any:
         raise NotImplementedError
@@ -29,7 +29,8 @@ class DistanceToSolution(Metric):
 
     def __call__(self,
                  i: int,
-                 integrator: Integrator,
+                 state_dict: Dict[Text, Union[np.ndarray, float]],
+                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> Any:
 

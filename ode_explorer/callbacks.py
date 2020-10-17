@@ -1,14 +1,19 @@
 import numpy as np
+import logging
 from ode_explorer.integrator import Integrator
 from ode_explorer.model import ODEModel
 
-from typing import Dict, Text, Any
+from typing import Dict, Text, Any, Union
+
+logging.basicConfig(level=logging.DEBUG)
+callback_logger = logging.getLogger("ode_explorer.callbacks.Callback")
 
 
 class Callback:
     def __call__(self,
                  i: int,
-                 integrator: Integrator,
+                 state_dict: Dict[Text, Union[np.ndarray, float]],
+                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
         raise NotImplementedError
@@ -27,7 +32,8 @@ class NaNChecker(Callback):
 
     def __call__(self,
                  i: int,
-                 integrator: Integrator,
+                 state_dict: Dict[Text, Union[np.ndarray, float]],
+                 updated_state_dict: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
 
@@ -42,9 +48,9 @@ class NaNChecker(Callback):
         na_mask = np.isnan(y_new)
         if np.any(na_mask):
             if self.errors == "raise":
-                integrator.logger.error("Error: Encountered at least one NaN "
-                                        "value in the state after the ODE "
-                                        "step.")
+                callback_logger.error("Error: Encountered at least one NaN "
+                                      "value in the state after the ODE "
+                                      "step.")
                 raise ValueError("Error: There were NaN values in the ODE data"
                                  " and the error handling mode was set to "
                                  "\"{errors}\". If you want to fill NaN values"
@@ -53,12 +59,12 @@ class NaNChecker(Callback):
                                  "callback construction.".format(
                                   errors=self.errors))
             elif self.errors == "coerce":
-                integrator.logger.warning("Encountered at least one NaN "
-                                          "value in the state after the ODE "
-                                          "step. Filling the NaN values with "
-                                          "preset replacement value "
-                                          "{replacement}.".format(
-                                           replacement=self.replacement))
+                callback_logger.warning("Encountered at least one NaN "
+                                        "value in the state after the ODE "
+                                        "step. Filling the NaN values with "
+                                        "preset replacement value "
+                                        "{replacement}.".format(
+                                         replacement=self.replacement))
 
                 # get na_keys by na_mask
                 na_keys = [key for i, key in enumerate(keys) if na_mask[i]]
@@ -66,11 +72,11 @@ class NaNChecker(Callback):
                     updated_state_dict[na_key] = self.replacement
 
             else:  # ignore errors
-                integrator.logger.warning("Encountered at least one NaN "
-                                          "value in the state after the ODE "
-                                          "step. Since error handling mode "
-                                          "was set to {errors}, NaN values "
-                                          "will be ignored. This will most "
-                                          "likely have severe effects on your "
-                                          "computation.".format(
-                                           errors=self.errors))
+                callback_logger.warning("Encountered at least one NaN "
+                                        "value in the state after the ODE "
+                                        "step. Since error handling mode "
+                                        "was set to {errors}, NaN values "
+                                        "will be ignored. This will most "
+                                        "likely have severe effects on your "
+                                        "computation.".format(
+                                        errors=self.errors))

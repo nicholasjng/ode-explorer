@@ -17,12 +17,16 @@ def main(argv):
 
     model = ODEModel(ode_fn=ode_func, fn_args={"lamb": lamb})
 
-    integrator = Integrator(step_func=RungeKutta4())
+    integrator = Integrator()
 
     initial_state = {"t": t_0, "y": y_0}
 
-    integrator.integrate_const(model=model, initial_state=initial_state,
-                               h=0.001, num_steps=10000, verbosity=1)
+    integrator.integrate_const(model=model,
+                               step_func=RungeKutta4(),
+                               initial_state=initial_state,
+                               h=0.001,
+                               num_steps=10000,
+                               verbosity=1)
 
 
 if __name__ == "__main__":

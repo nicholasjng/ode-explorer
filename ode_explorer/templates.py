@@ -49,7 +49,8 @@ class StepFunction:
 
     @staticmethod
     def make_zipped_dict(model: ODEModel, t: float,
-                         y: Union[np.ndarray, float]):
+                         y: Union[np.ndarray, float]) -> \
+            Dict[Text, Union[np.ndarray, float]]:
         if is_scalar(y):
             y_new = [y]
         else:
@@ -60,11 +61,13 @@ class StepFunction:
 
     @staticmethod
     def make_state_dict(model: ODEModel, t: float,
-                        y: Union[np.ndarray, float]):
+                        y: Union[np.ndarray, float]) -> \
+            Dict[Text, Union[np.ndarray, float]]:
         return {model.indep_name: t, model.variable_names[0]: y}
 
     def make_new_state(self, model: ODEModel, t: float,
-                       y: Union[np.ndarray, float]):
+                       y: Union[np.ndarray, float]) -> \
+            Dict[Text, Union[np.ndarray, float]]:
 
         if self.output_format == ZIPPED:
             return self.make_zipped_dict(model=model, t=t, y=y)

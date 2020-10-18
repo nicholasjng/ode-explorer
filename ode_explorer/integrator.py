@@ -154,6 +154,13 @@ class Integrator:
         state = copy.deepcopy(initial_state)
         self.result_data.append(initial_state)
 
+        metric_dict = {"iteration": 0,
+                       model.indep_name: initial_state[model.indep_name]}
+
+        # TODO: This can very well break
+        metric_dict.update({m.name: 0.0 for m in metrics})
+        self.metric_data.append(metric_dict)
+
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
@@ -179,14 +186,13 @@ class Integrator:
             for callback in callbacks:
                 callback(i, state, updated_state, model, locals())
 
-            metric_dict = {}
+            # adding the current iteration number and time stamp
+            metric_dict = {"iteration": i,
+                           model.indep_name: updated_state[model.indep_name]}
+
             for metric in metrics:
                 val = metric(i, state, updated_state, model, locals())
                 metric_dict[metric.__name__] = val
-
-            # adding the current time stamp
-            metric_dict.update({model.indep_name:
-                                updated_state[model.indep_name]})
 
             self.metric_data.append(metric_dict)
 
@@ -225,6 +231,10 @@ class Integrator:
                               flush_data_every: int = None,
                               callbacks: List[Callback] = None,
                               metrics: List[Metric] = None):
+
+        # callbacks and metrics, to be executed/computed after the step
+        callbacks = callbacks or []
+        metrics = metrics or []
 
         # create file handlers if necessary
         if logfile:
@@ -267,6 +277,13 @@ class Integrator:
         state = copy.deepcopy(initial_state)
         self.result_data.append(initial_state)
 
+        initial_metrics = {"iteration": 0,
+                           model.indep_name: initial_state[model.indep_name]}
+
+        # TODO: This can very well break
+        initial_metrics.update({m.name: 0.0 for m in metrics})
+        self.metric_data.append(initial_metrics)
+
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
@@ -295,16 +312,19 @@ class Integrator:
                 callback(i, state, updated_state, model, locals())
 
             # initialize with the current iteration number and time stamp
-            metric_dict = {"iteration": i,
+            new_metrics = {"iteration": i,
                            model.indep_name:
-                           updated_state[model.indep_name]}
+                           updated_state[model.indep_name],
+                           "step_size": h}
 
             for metric in metrics:
-                metric_dict[metric.__name__] = metric(i, state, updated_state, model, locals())
+                new_metrics[metric.__name__] = metric(i, state, updated_state, model, locals())
 
-            self.metric_data.append(metric_dict)
+            self.metric_data.append(new_metrics)
 
-            h = sc(i, state, updated_state, model, locals())
+            h_new = sc(i, h, state, updated_state, model, locals())
+
+            h = h_new
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state

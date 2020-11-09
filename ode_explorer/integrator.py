@@ -6,7 +6,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 
-from tqdm import tqdm
+from tqdm import trange
 from typing import Dict, Callable, Text, List, Union
 
 from ode_explorer.templates import StepFunction
@@ -155,7 +155,7 @@ class Integrator:
         self.result_data.append(initial_state)
 
         metric_dict = {"iteration": 0,
-                       model.indep_name: initial_state[model.indep_name]}
+                       "step_size": h}
 
         # TODO: This can very well break
         metric_dict.update({m.name: 0.0 for m in metrics})
@@ -168,7 +168,7 @@ class Integrator:
 
         if self.progress_bar:
             # register to tqdm
-            iterator = tqdm(iterator)
+            iterator = trange(1, num_steps + 2)
 
         for i in iterator:
             if self._pre_step_hook:
@@ -188,7 +188,7 @@ class Integrator:
 
             # adding the current iteration number and time stamp
             metric_dict = {"iteration": i,
-                           model.indep_name: updated_state[model.indep_name]}
+                           "step_size": h}
 
             for metric in metrics:
                 val = metric(i, state, updated_state, model, locals())
@@ -278,7 +278,9 @@ class Integrator:
         self.result_data.append(initial_state)
 
         initial_metrics = {"iteration": 0,
-                           model.indep_name: initial_state[model.indep_name]}
+                           "step_size": initial_h,
+                           "n_accept": 0,
+                           "n_reject": 0}
 
         # TODO: This can very well break
         initial_metrics.update({m.name: 0.0 for m in metrics})
@@ -291,7 +293,7 @@ class Integrator:
 
         if self.progress_bar:
             # register to tqdm
-            iterator = tqdm(iterator)
+            iterator = trange(1, max_steps + 2)
 
         h = initial_h
 
@@ -311,20 +313,24 @@ class Integrator:
             for callback in callbacks:
                 callback(i, state, updated_state, model, locals())
 
+            accepted, h_new = sc(i, h, state, updated_state, model, locals())
+            h = h_new
+
             # initialize with the current iteration number and time stamp
             new_metrics = {"iteration": i,
-                           model.indep_name:
-                           updated_state[model.indep_name],
-                           "step_size": h}
+                           "step_size": h,
+                           "n_accept": self.metric_data[i - 1]["n_accept"] + int(accepted),
+                           "n_reject": self.metric_data[i - 1]["n_reject"] + int(not accepted)}
+
+            if not accepted:
+                continue
+
+
 
             for metric in metrics:
                 new_metrics[metric.__name__] = metric(i, state, updated_state, model, locals())
 
             self.metric_data.append(new_metrics)
-
-            h_new = sc(i, h, state, updated_state, model, locals())
-
-            h = h_new
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state

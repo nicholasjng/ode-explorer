@@ -41,4 +41,4 @@ class DistanceToSolution(Metric):
 
         y_pred = self.solution(t)
 
-        return np.linalg.norm(y - y_pred)
+        return np.linalg.norm(y - y_pred, ord=self.norm)

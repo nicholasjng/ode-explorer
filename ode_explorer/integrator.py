@@ -55,6 +55,8 @@ class Integrator:
 
         self.progress_bar = progress_bar
 
+        self.logger.info("Created an Integrator instance.")
+
     def _reset_step_counter(self):
         self._step_count = 0
 
@@ -304,6 +306,10 @@ class Integrator:
             updated_state = step_func.forward(model, state, h)
 
             accepted, h_new = sc(i, h, state, updated_state, model, locals())
+
+            if updated_state[model.indep_name] + h_new > end:
+                h = end - updated_state[model.indep_name]
+
             h = h_new
 
             # initialize with the current iteration number and time stamp
@@ -324,6 +330,9 @@ class Integrator:
                 continue
 
             self.result_data.append(updated_state)
+
+            if updated_state[model.indep_name] >= end:
+                break
 
             if len(self.result_data) % flush_data_every == 0:
                 if not data_outfile:

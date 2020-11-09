@@ -176,16 +176,6 @@ class Integrator:
 
             updated_state = step_func.forward(model, state, h)
 
-            self.result_data.append(updated_state)
-
-            if i % flush_data_every == 0:
-                self.write_data_to_file(data_outfile)
-                self.result_data = []
-
-            # execute the registered callbacks after the step
-            for callback in callbacks:
-                callback(i, state, updated_state, model, locals())
-
             # adding the current iteration number and time stamp
             metric_dict = {"iteration": i,
                            "step_size": h}
@@ -195,6 +185,16 @@ class Integrator:
                 metric_dict[metric.__name__] = val
 
             self.metric_data.append(metric_dict)
+
+            # execute the registered callbacks after the step
+            for callback in callbacks:
+                callback(i, state, updated_state, model, locals())
+
+            self.result_data.append(updated_state)
+
+            if i % flush_data_every == 0:
+                self.write_data_to_file(data_outfile)
+                self.result_data = []
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
@@ -303,16 +303,6 @@ class Integrator:
 
             updated_state = step_func.forward(model, state, h)
 
-            self.result_data.append(updated_state)
-
-            if i % flush_data_every == 0:
-                self.write_data_to_file(data_outfile)
-                self.result_data = []
-
-            # execute the registered callbacks after the step
-            for callback in callbacks:
-                callback(i, state, updated_state, model, locals())
-
             accepted, h_new = sc(i, h, state, updated_state, model, locals())
             h = h_new
 
@@ -322,15 +312,26 @@ class Integrator:
                            "n_accept": self.metric_data[i - 1]["n_accept"] + int(accepted),
                            "n_reject": self.metric_data[i - 1]["n_reject"] + int(not accepted)}
 
+            for metric in metrics:
+                new_metrics[metric.__name__] = metric(i, state, updated_state, model, locals())
+                self.metric_data.append(new_metrics)
+
+            # execute the registered callbacks after the step
+            for callback in callbacks:
+                callback(i, state, updated_state, model, locals())
+
             if not accepted:
                 continue
 
+            self.result_data.append(updated_state)
 
-
-            for metric in metrics:
-                new_metrics[metric.__name__] = metric(i, state, updated_state, model, locals())
-
-            self.metric_data.append(new_metrics)
+            if len(self.result_data) % flush_data_every == 0:
+                if not data_outfile:
+                    raise ValueError("Error: Flushing data requires a target "
+                                     "output file but none was given.")
+                else:
+                    self.write_data_to_file(data_outfile)
+                    self.result_data = []
 
             # update delayed after callback execution so that callbacks have
             # access to both the previous and the current state
@@ -341,14 +342,11 @@ class Integrator:
         self.logger.info("Finished integration.")
 
         if self.result_data:
-            outfile_name = data_outfile or "run_" + \
-                           datetime.datetime.now().strftime(
-                               '%Y-%m-%d-%H-%M-%S')
+            if data_outfile:
+                self.write_data_to_file(model=model, data_outfile=data_outfile)
 
-            self.write_data_to_file(model=model, data_outfile=data_outfile)
-
-            self.logger.info("Results written to file {}.".format(
-                os.path.join(self.log_dir, outfile_name)))
+                self.logger.info("Results written to file {}.".format(
+                    os.path.join(self.log_dir, data_outfile)))
 
         return self
 

@@ -1,7 +1,6 @@
 import numpy as np
 from ode_explorer.model import ODEModel
-from typing import Dict, Text, Any, Union
-from math import sqrt, isqrt
+from typing import Dict, Text, Any, Union, Tuple
 
 
 class StepsizeController:
@@ -11,7 +10,7 @@ class StepsizeController:
                  state: Dict[Text, Union[np.ndarray, float]],
                  updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> float:
+                 locals: Dict[Text, Any]) -> Tuple[bool, float]:
         raise NotImplementedError
 
 
@@ -30,7 +29,7 @@ class DOPRI45Controller(StepsizeController):
                  state: Dict[Text, Union[np.ndarray, float]],
                  updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> float:
+                 locals: Dict[Text, Any]) -> Tuple[bool, float]:
 
         order4, order5 = updated_state
 
@@ -39,10 +38,14 @@ class DOPRI45Controller(StepsizeController):
         y_4, y_5 = order4[var_name], order5[var_name]
 
         norm_diff45 = np.linalg.norm(y_4 - y_5)
+        accept = norm_diff45 < self.tol
 
         error_est = (self.tol / h * norm_diff45) ** (1 / self.order)
 
         h_new = h * min(self.fac_max,
                         max(self.fac_min, self.safety_factor * error_est))
 
-        return h_new
+        if not accept:
+            h_new = 0.5 * h
+
+        return accept, h_new

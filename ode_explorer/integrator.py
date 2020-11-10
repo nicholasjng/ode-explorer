@@ -305,12 +305,16 @@ class Integrator:
 
             updated_state = step_func.forward(model, state, h)
 
-            accepted, h_new = sc(i, h, state, updated_state, model, locals())
+            accepted, h = sc(i, h, state, updated_state, model, locals())
 
-            if updated_state[model.indep_name] + h_new > end:
-                h = end - updated_state[model.indep_name]
+            # e.g. DOPRI45 returns a tuple of estimates, as do embedded RKs
+            if isinstance(updated_state, (tuple, list)):
+                current = updated_state[0][model.indep_name]
+            else:
+                current = updated_state[model.indep_name]
 
-            h = h_new
+            if current + h > end:
+                h = end - current
 
             # initialize with the current iteration number and time stamp
             new_metrics = {"iteration": i,
@@ -331,7 +335,7 @@ class Integrator:
 
             self.result_data.append(updated_state)
 
-            if updated_state[model.indep_name] >= end:
+            if current >= end:
                 break
 
             if len(self.result_data) % flush_data_every == 0:

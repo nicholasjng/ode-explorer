@@ -16,8 +16,8 @@ class StepsizeController:
 
 class DOPRI45Controller(StepsizeController):
     def __init__(self,
-                 atol: float,
-                 rtol: float,
+                 atol: float = 0.001,
+                 rtol: float = 0.001,
                  fac_min: float = 0.2,
                  fac_max: float = 5.0,
                  safety_factor: float = 0.9):
@@ -41,6 +41,7 @@ class DOPRI45Controller(StepsizeController):
 
         order4, order5 = updated_state
 
+        # TODO: This only works for y' = f(t,y) type situations
         var_name = model.variable_names[0]
 
         y_prev = state[var_name]

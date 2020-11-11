@@ -47,7 +47,7 @@ class Integrator:
 
         self.logfile_name = logfile_name or "logs.txt"
 
-        self.logger = None
+        self.logger = integrator_logger
 
         self.set_up_logger(log_dir=self.log_dir)
 
@@ -70,7 +70,6 @@ class Integrator:
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
-        self.logger = integrator_logger
         # flush handlers on construction since it is a global object
         self.logger.handlers = []
 
@@ -102,6 +101,7 @@ class Integrator:
         metrics = metrics or []
 
         # create file handler
+        # TODO: Flush all previous handlers except the base to prevent clutter
         if logfile:
             fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
             self.logger.addHandler(fh)
@@ -160,7 +160,7 @@ class Integrator:
                        "step_size": h}
 
         # TODO: This can very well break
-        metric_dict.update({m.name: 0.0 for m in metrics})
+        metric_dict.update({m.__name__: 0.0 for m in metrics})
         self.metric_data.append(metric_dict)
 
         self.logger.info("Starting integration.")
@@ -207,13 +207,11 @@ class Integrator:
         self.logger.info("Finished integration.")
 
         if self.result_data:
-            outfile_name = data_outfile or "run_" + \
-                        datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+            if data_outfile:
+                self.write_data_to_file(model=model, data_outfile=data_outfile)
 
-            self.write_data_to_file(model=model, data_outfile=data_outfile)
-
-            self.logger.info("Results written to file {}.".format(
-                os.path.join(self.log_dir, outfile_name)))
+                self.logger.info("Results written to file {}.".format(
+                    os.path.join(self.log_dir, data_outfile)))
 
         return self
 
@@ -239,6 +237,7 @@ class Integrator:
         metrics = metrics or []
 
         # create file handlers if necessary
+        # TODO: Flush all previous handlers except the base to prevent clutter
         if logfile:
             fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
             fh.setLevel(verbosity)
@@ -285,7 +284,7 @@ class Integrator:
                            "n_reject": 0}
 
         # TODO: This can very well break
-        initial_metrics.update({m.name: 0.0 for m in metrics})
+        initial_metrics.update({m.__name__: 0.0 for m in metrics})
         self.metric_data.append(initial_metrics)
 
         self.logger.info("Starting integration.")
@@ -339,10 +338,7 @@ class Integrator:
                 break
 
             if len(self.result_data) % flush_data_every == 0:
-                if not data_outfile:
-                    raise ValueError("Error: Flushing data requires a target "
-                                     "output file but none was given.")
-                else:
+                if data_outfile:
                     self.write_data_to_file(data_outfile)
                     self.result_data = []
 

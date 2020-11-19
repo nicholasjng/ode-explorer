@@ -2,9 +2,9 @@ import numpy as np
 # import inspect
 from typing import Dict, Text, Union, Tuple
 from ode_explorer.model import ODEModel
-from ode_explorer.constants import ZIPPED, VARIABLES
+from ode_explorer.constants import VARIABLES
 from ode_explorer.templates import StepFunction
-from utils.data_utils import is_scalar
+from ode_explorer.utils.data_utils import is_scalar
 
 from scipy.optimize import root, root_scalar
 # import jax.numpy as jnp

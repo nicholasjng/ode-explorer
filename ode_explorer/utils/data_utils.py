@@ -3,15 +3,12 @@ import pandas as pd
 import os
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import ZIPPED, VARIABLES
+from ode_explorer.utils.helpers import is_scalar
 from typing import List, Dict, Text, Any, Union
 
 
 def make_log_dir():
     pass
-
-
-def is_scalar(y):
-    return not hasattr(y, "__len__")
 
 
 def convert_to_zipped(state_dict: Dict[Text, Any], model: ODEModel):

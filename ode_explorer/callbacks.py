@@ -1,6 +1,5 @@
 import numpy as np
 import logging
-from ode_explorer.integrator import Integrator
 from ode_explorer.model import ODEModel
 
 from typing import Dict, Text, Any, Union

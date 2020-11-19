@@ -16,8 +16,8 @@ from ode_explorer.metrics import Metric
 from ode_explorer.constants import DYNAMIC_MAX_STEPS, DYNAMIC_INITIAL_H
 from ode_explorer.stepsizecontroller import StepsizeController
 
-from utils.data_utils import write_to_file, convert_to_zipped
-from utils.data_utils import infer_dict_format
+from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
+from ode_explorer.utils.data_utils import infer_dict_format
 
 logging.basicConfig(level=logging.DEBUG)
 integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")
@@ -368,3 +368,6 @@ class Integrator:
         df = pd.DataFrame(self.result_data)
 
         df.plot(ax=ax)
+
+
+    # TODO: expose member function for returning a result dataframe

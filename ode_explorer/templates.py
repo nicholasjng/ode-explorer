@@ -4,7 +4,7 @@ import logging
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import VARIABLES, ZIPPED
 from typing import Text, Dict, Union
-from utils.data_utils import is_scalar
+from ode_explorer.utils.data_utils import is_scalar
 from scipy.optimize import root, root_scalar
 
 logging.basicConfig(level=logging.DEBUG)

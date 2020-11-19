@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Callable, Dict, Any, Text, List, Union
-from utils.import_utils import import_func_from_module
-from utils.data_utils import is_scalar
+from ode_explorer.utils.import_utils import import_func_from_module
+from ode_explorer.utils.helpers import is_scalar
 
 
 class ODEModel:

@@ -13,8 +13,8 @@ from ode_explorer.templates import StepFunction
 from ode_explorer.model import ODEModel
 from ode_explorer.callbacks import Callback
 from ode_explorer.metrics import Metric
-from ode_explorer.constants import DYNAMIC_MAX_STEPS, DYNAMIC_INITIAL_H
-from ode_explorer.constants import ZIPPED, VARIABLES
+from ode_explorer.constants import DataFormatKeys, DynamicVariables, \
+    RunMetadataKeys
 from ode_explorer.stepsizecontroller import StepsizeController
 
 from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
@@ -39,6 +39,7 @@ class Integrator:
         self._pre_step_hook = pre_step_hook
 
         # empty lists holding the step and metric data
+        self.runs = []
         self.result_data, self.metric_data = [], []
 
         # step count, can be used to track integration runs
@@ -50,7 +51,7 @@ class Integrator:
 
         self.logger = integrator_logger
 
-        self.set_up_logger(log_dir=self.log_dir)
+        self._set_up_logger(log_dir=self.log_dir)
 
         self.data_dir = data_output_dir or os.path.join(os.getcwd(), "results")
 
@@ -61,6 +62,7 @@ class Integrator:
     def _reset(self):
         # Hard reset all data and step counts
         self._step_count = 0
+        self.runs = []
         self.result_data = []
         self.metric_data = []
 
@@ -70,7 +72,7 @@ class Integrator:
 
         write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
-    def set_up_logger(self, log_dir):
+    def _set_up_logger(self, log_dir):
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
@@ -85,24 +87,24 @@ class Integrator:
         self.logger.addHandler(fh)
         self.logger.info('Creating an Integrator instance.')
 
-    def integrate_const(self,
-                        model: ODEModel,
-                        step_func: StepFunction,
-                        initial_state: Dict[Text, Union[np.ndarray, float]],
-                        end: float = None,
-                        h: float = None,
-                        num_steps: int = None,
-                        reset_step_counter: bool = True,
-                        verbosity: int = 0,
-                        data_outfile: Text = None,
-                        logfile: Text = None,
-                        flush_data_every: int = None,
-                        callbacks: List[Callback] = None,
-                        metrics: List[Metric] = None):
-
-        # callbacks and metrics, to be executed/computed after the step
-        callbacks = callbacks or []
-        metrics = metrics or []
+    def _startup(self,
+                 model: ODEModel,
+                 step_func: StepFunction,
+                 initial_state: Dict[Text, Union[np.ndarray, float]],
+                 end: float,
+                 h: float,
+                 num_steps: int,
+                 reset_step_counter: bool,
+                 verbosity: int,
+                 logfile: Text,
+                 callbacks: List[Callback],
+                 metrics: List[Metric]):
+        run = {}
+        run_metadata = {RunMetadataKeys.METRIC_NAMES:
+                            [m.__name__ for m in metrics],
+                        RunMetadataKeys.CALLBACK_NAMES:
+                            [c.__name__ for c in callbacks],
+                        RunMetadataKeys.TIMESTAMP: datetime.datetime.now()}
 
         # create file handler
         # TODO: Flush all previous handlers except the base to prevent clutter
@@ -140,6 +142,41 @@ class Integrator:
         if reset_step_counter:
             self._reset()
 
+        return run, run_metadata
+
+    def integrate_const(self,
+                        model: ODEModel,
+                        step_func: StepFunction,
+                        initial_state: Dict[Text, Union[np.ndarray, float]],
+                        end: float = None,
+                        h: float = None,
+                        num_steps: int = None,
+                        reset_step_counter: bool = True,
+                        verbosity: int = 0,
+                        data_outfile: Text = None,
+                        logfile: Text = None,
+                        flush_data_every: int = None,
+                        callbacks: List[Callback] = None,
+                        metrics: List[Metric] = None):
+
+        # callbacks and metrics, to be executed/computed after the step
+        callbacks = callbacks or []
+        metrics = metrics or []
+
+        run, run_metadata = self._startup(model=model,
+                                          step_func=step_func,
+                                          initial_state=initial_state,
+                                          end=end,
+                                          h=h,
+                                          num_steps=num_steps,
+                                          reset_step_counter=reset_step_counter,
+                                          verbosity=verbosity,
+                                          logfile=logfile,
+                                          callbacks=callbacks,
+                                          metrics=metrics)
+
+        start = initial_state[model.indep_name]
+
         # Register the missing of the 4 arguments
         if not end:
             end = start + h * num_steps
@@ -153,18 +190,17 @@ class Integrator:
         elif not num_steps:
             num_steps = int((end - start) / h)
 
-        if not flush_data_every:
-            flush_data_every = num_steps + 2
+        flush_data_every = flush_data_every or num_steps + 1
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
         self.result_data.append(initial_state)
 
-        metric_dict = {"iteration": 0,
-                       "step_size": h}
+        metric_dict = {"iteration": 0, "step_size": h}
 
-        # TODO: This can very well break
-        metric_dict.update({m.__name__: 0.0 for m in metrics})
+        for metric in metrics:
+            val = metric(0, state, state, model, locals())
+            metric_dict[metric.__name__] = val
         self.metric_data.append(metric_dict)
 
         self.logger.info("Starting integration.")
@@ -222,9 +258,8 @@ class Integrator:
     def integrate_dynamically(self,
                               model: ODEModel,
                               step_func: StepFunction,
+                              initial_state: Dict[Text, Union[np.ndarray, float]],
                               sc: Union[StepsizeController, Callable],
-                              initial_state: Dict[Text,
-                                                  Union[np.ndarray, float]],
                               end: float,
                               initial_h: float = None,
                               max_steps: int = None,
@@ -267,16 +302,16 @@ class Integrator:
         if not initial_h:
             self.logger.warning(f"No maximum step count supplied, falling "
                                 f"back to builtin initial step size "
-                                f"of {DYNAMIC_INITIAL_H}.")
-            initial_h = DYNAMIC_INITIAL_H
+                                f"of {DynamicVariables.DYNAMIC_INITIAL_H}.")
+            initial_h = DynamicVariables.DYNAMIC_INITIAL_H
 
         if not max_steps:
             self.logger.warning(f"No maximum step count supplied, falling "
                                 f"back to builtin maximum step count "
-                                f"of {DYNAMIC_MAX_STEPS}.")
-            max_steps = DYNAMIC_MAX_STEPS
+                                f"of {DynamicVariables.DYNAMIC_MAX_STEPS}.")
+            max_steps = DynamicVariables.DYNAMIC_MAX_STEPS
 
-        flush_data_every = flush_data_every or max_steps + 2
+        flush_data_every = flush_data_every or max_steps + 1
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
@@ -294,11 +329,11 @@ class Integrator:
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
-        iterator = range(1, max_steps + 2)
+        iterator = range(1, max_steps + 1)
 
         if self.progress_bar:
             # register to tqdm
-            iterator = trange(1, max_steps + 2)
+            iterator = trange(1, max_steps + 1)
 
         h = initial_h
 
@@ -370,7 +405,7 @@ class Integrator:
 
         result_format = infer_dict_format(first_step, model=model)
 
-        if result_format != ZIPPED:
+        if result_format != DataFormatKeys.ZIPPED:
             for i, res in enumerate(self.result_data):
                 self.result_data[i] = convert_to_zipped(res, model)
 

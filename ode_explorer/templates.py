@@ -2,7 +2,7 @@ import numpy as np
 import logging
 
 from ode_explorer.model import ODEModel
-from ode_explorer.constants import VARIABLES, ZIPPED
+from ode_explorer.constants import DataFormatKeys
 from typing import Text, Dict, Union
 from ode_explorer.utils.data_utils import is_scalar
 from scipy.optimize import root, root_scalar
@@ -16,10 +16,12 @@ class StepFunction:
     Base class for all ODE step functions.
     """
 
-    def __init__(self, output_format: Text = VARIABLES, order: int = 0):
+    def __init__(self,
+                 output_format: Text = DataFormatKeys.VARIABLES,
+                 order: int = 0):
         # order of the method
         self.order = order
-        if output_format not in [VARIABLES, ZIPPED]:
+        if output_format not in DataFormatKeys:
             raise ValueError(f"Error: Output format \"{output_format}\" not "
                              f"understood.")
         self.output_format = output_format
@@ -33,9 +35,9 @@ class StepFunction:
 
         # at this point, t is removed from the dict
         # and only the state is left
-        if input_format == VARIABLES:
+        if input_format == DataFormatKeys.VARIABLES:
             y = state[model.variable_names[0]]
-        elif input_format == ZIPPED:
+        elif input_format == DataFormatKeys.ZIPPED:
             y = np.array(list(state.values()))
         else:
             raise ValueError(f"Error: Input format {input_format} not "
@@ -69,7 +71,7 @@ class StepFunction:
                        y: Union[np.ndarray, float]) -> \
             Dict[Text, Union[np.ndarray, float]]:
 
-        if self.output_format == ZIPPED:
+        if self.output_format == DataFormatKeys.ZIPPED:
             return self.make_zipped_dict(model=model, t=t, y=y)
         else:
             return self.make_state_dict(model=model, t=t, y=y)
@@ -78,7 +80,7 @@ class StepFunction:
                 model: ODEModel,
                 state_dict: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
         raise NotImplementedError
 
@@ -88,7 +90,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
                  alphas: np.ndarray,
                  betas: np.ndarray,
                  gammas: np.ndarray,
-                 output_format: Text = VARIABLES,
+                 output_format: Text = DataFormatKeys.VARIABLES,
                  order: int = 0):
 
         super(ExplicitRungeKuttaMethod, self).__init__(output_format,
@@ -132,7 +134,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state(model=model,
@@ -165,7 +167,7 @@ class ImplicitRungeKuttaMethod(StepFunction):
                  alphas: np.ndarray,
                  betas: np.ndarray,
                  gammas: np.ndarray,
-                 output_format: Text = VARIABLES,
+                 output_format: Text = DataFormatKeys.VARIABLES,
                  order: int = 0,
                  **kwargs):
 
@@ -207,7 +209,7 @@ class ImplicitRungeKuttaMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state(model=model,
@@ -275,7 +277,7 @@ class ExplicitMultistepMethod(StepFunction):
     def __init__(self,
                  startup: StepFunction,
                  b_coeffs: np.ndarray,
-                 output_format: Text = VARIABLES,
+                 output_format: Text = DataFormatKeys.VARIABLES,
                  order: int = 0):
         super(ExplicitMultistepMethod, self).__init__(output_format=
                                                       output_format)
@@ -305,7 +307,7 @@ class ExplicitMultistepMethod(StepFunction):
                                     state: Dict[Text,
                                                      Union[np.ndarray, float]],
                                     h: float,
-                                    input_format: Text = VARIABLES,
+                                    input_format: Text = DataFormatKeys.VARIABLES,
                                     **kwargs):
 
         t, y = self.get_data_from_state(model=model,
@@ -348,7 +350,7 @@ class ExplicitMultistepMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         if not self.ready:
@@ -404,7 +406,7 @@ class ImplicitMultistepMethod(StepFunction):
     def __init__(self,
                  startup: StepFunction,
                  b_coeffs: np.ndarray,
-                 output_format: Text = VARIABLES,
+                 output_format: Text = DataFormatKeys.VARIABLES,
                  order: int = 0,
                  **kwargs):
         super(ImplicitMultistepMethod, self).__init__(output_format=
@@ -439,7 +441,7 @@ class ImplicitMultistepMethod(StepFunction):
                                     state: Dict[Text,
                                                      Union[np.ndarray, float]],
                                     h: float,
-                                    input_format: Text = VARIABLES,
+                                    input_format: Text = DataFormatKeys.VARIABLES,
                                     **kwargs):
 
         t, y = self.get_data_from_state(model=model,
@@ -482,7 +484,7 @@ class ImplicitMultistepMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         if not self.ready:

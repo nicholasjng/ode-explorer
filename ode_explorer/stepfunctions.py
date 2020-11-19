@@ -2,7 +2,7 @@ import numpy as np
 # import inspect
 from typing import Dict, Text, Union, Tuple
 from ode_explorer.model import ODEModel
-from ode_explorer.constants import VARIABLES
+from ode_explorer.constants import DataFormatKeys
 from ode_explorer.templates import StepFunction
 from ode_explorer.utils.data_utils import is_scalar
 
@@ -24,7 +24,7 @@ class EulerMethod(StepFunction):
     Euler method for ODE integration.
     """
 
-    def __init__(self, output_format: Text = VARIABLES):
+    def __init__(self, output_format: Text = DataFormatKeys.VARIABLES):
         super(EulerMethod, self).__init__(output_format=output_format)
         self.order = 1
 
@@ -32,7 +32,7 @@ class EulerMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state(model=model,
@@ -51,7 +51,7 @@ class HeunMethod(StepFunction):
     Heun method for ODE integration.
     """
 
-    def __init__(self, output_format: Text = VARIABLES):
+    def __init__(self, output_format: Text = DataFormatKeys.VARIABLES):
         super(HeunMethod, self).__init__(output_format=output_format)
         self.order = 1
         self.ks = np.zeros((1, 2))
@@ -60,7 +60,7 @@ class HeunMethod(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state(model=model,
@@ -87,7 +87,7 @@ class RungeKutta4(StepFunction):
     Classic Runge Kutta of order 4 for ODE integration.
     """
 
-    def __init__(self, output_format: Text = VARIABLES):
+    def __init__(self, output_format: Text = DataFormatKeys.VARIABLES):
         super(RungeKutta4, self).__init__(output_format=output_format)
 
         self.order = 4
@@ -130,7 +130,7 @@ class DOPRI5(StepFunction):
     dict with an approximation of order 5 in the step size.
     """
 
-    def __init__(self, output_format: Text = VARIABLES):
+    def __init__(self, output_format: Text = DataFormatKeys.VARIABLES):
         super(DOPRI5, self).__init__(output_format=output_format)
         self.order = 5
         self.ks = np.zeros((1, 6))
@@ -153,7 +153,7 @@ class DOPRI5(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         t, y = self.get_data_from_state(model=model,
@@ -197,7 +197,7 @@ class DOPRI45(StepFunction):
     dict with two y values, one accurate of order 4 and the other of order 5
     (hence the name), which can be used for step size estimation.
     """
-    def __init__(self, output_format: Text = VARIABLES):
+    def __init__(self, output_format: Text = DataFormatKeys.VARIABLES):
         super(DOPRI45, self).__init__(output_format=output_format)
         self.order = 5
         self.ks = np.zeros((1, 7))
@@ -223,7 +223,7 @@ class DOPRI45(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Tuple[Dict[Text, Union[np.ndarray, float]],
                                   Dict[Text, Union[np.ndarray, float]]]:
         t, y = self.get_data_from_state(model=model,
@@ -267,7 +267,7 @@ class ImplicitEulerMethod(StepFunction):
     """
     Implicit Euler Method for ODE solving.
     """
-    def __init__(self, output_format: Text = VARIABLES, **kwargs):
+    def __init__(self, output_format: Text = DataFormatKeys.VARIABLES, **kwargs):
         super(ImplicitEulerMethod, self).__init__(output_format=output_format)
         self.order = 1
 
@@ -324,7 +324,7 @@ class AdamsBashforth2(StepFunction):
     """
 
     def __init__(self, startup: StepFunction,
-                 output_format: Text = VARIABLES):
+                 output_format: Text = DataFormatKeys.VARIABLES):
         super(AdamsBashforth2, self).__init__(output_format=output_format)
         self.order = 2
 
@@ -351,7 +351,7 @@ class AdamsBashforth2(StepFunction):
                                     state: Dict[Text,
                                                      Union[np.ndarray, float]],
                                     h: float,
-                                    input_format: Text = VARIABLES,
+                                    input_format: Text = DataFormatKeys.VARIABLES,
                                     **kwargs):
 
         t, y = self.get_data_from_state(model=model,
@@ -391,7 +391,7 @@ class AdamsBashforth2(StepFunction):
                 model: ODEModel,
                 state: Dict[Text, Union[np.ndarray, float]],
                 h: float,
-                input_format: Text = VARIABLES,
+                input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
 
         if not self.ready:

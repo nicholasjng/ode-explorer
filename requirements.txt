@@ -1,9 +1,9 @@
-numpy
-pandas
-absl-py
-tqdm
-scipy
-pytest
+numpy==1.19.4
+pandas==1.1.4
+absl-py==0.11.0
+tqdm==4.52.0
+scipy==1.5.4
+pytest==6.1.2
 #jax
 #jaxlib
 #matplotlib

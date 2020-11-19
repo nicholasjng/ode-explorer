@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 from ode_explorer.model import ODEModel
-from ode_explorer.constants import ZIPPED, VARIABLES
+from ode_explorer.constants import DataFormatKeys
 from ode_explorer.utils.helpers import is_scalar
 from typing import List, Dict, Text, Any, Union
 
@@ -35,7 +35,7 @@ def convert_from_zipped(state_dict: Dict[Text, Any], model: ODEModel):
 
 def convert_state_dict(state_dict: Dict[Text, Any], model: ODEModel,
                        input_format: Text = None,
-                       output_format: Text = ZIPPED):
+                       output_format: Text = DataFormatKeys.ZIPPED):
     # infer dict mode by presence of variable name
     if not input_format:
         input_format = infer_dict_format(state_dict=state_dict, model=model)
@@ -43,7 +43,7 @@ def convert_state_dict(state_dict: Dict[Text, Any], model: ODEModel,
     if input_format == output_format:
         return state_dict
 
-    if output_format == ZIPPED:
+    if output_format == DataFormatKeys.ZIPPED:
         return convert_to_zipped(state_dict=state_dict, model=model)
     else:
         return convert_from_zipped(state_dict=state_dict, model=model)
@@ -56,10 +56,10 @@ def infer_dict_format(state_dict: Dict[Text, Union[float, np.ndarray]],
         # this is the case of a scalar ODE, where ZIPPED and VARIABLES are
         # the same
         if not any(isinstance(v, np.ndarray) for v in state_dict.values()):
-            return ZIPPED
-        return VARIABLES
+            return DataFormatKeys.ZIPPED
+        return DataFormatKeys.VARIABLES
     elif all(dim in state_dict for dim in model.dim_names):
-        return ZIPPED
+        return DataFormatKeys.ZIPPED
     else:
         raise ValueError("Error: Unrecognizable state dict format. Something "
                          "went wrong.")

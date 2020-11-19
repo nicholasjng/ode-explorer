@@ -6,6 +6,9 @@ from ode_explorer.constants import ZIPPED, VARIABLES
 from ode_explorer.utils.helpers import is_scalar
 from typing import List, Dict, Text, Any, Union
 
+__all__ = ["convert_to_zipped", "convert_from_zipped", "convert_state_dict",
+           "infer_dict_format", "write_to_file", "make_log_dir"]
+
 
 def make_log_dir():
     pass

@@ -6,6 +6,8 @@ import importlib
 import types
 from typing import Text, Callable
 
+__all__ = ["import_func_from_source", "import_func_from_module"]
+
 
 def import_func_from_source(source_path: Text, fn_name: Text) -> Callable:
     """Imports a function from a module provided as source file."""

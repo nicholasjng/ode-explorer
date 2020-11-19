@@ -9,6 +9,9 @@ callback_logger = logging.getLogger("ode_explorer.callbacks.Callback")
 
 
 class Callback:
+    def __init__(self, name: Text = None):
+        self.__name__ = name or self.__class__.__name__
+
     def __call__(self,
                  i: int,
                  state: Dict[Text, Union[np.ndarray, float]],
@@ -19,8 +22,14 @@ class Callback:
 
 
 class NaNChecker(Callback):
-    def __init(self, fill_nans: bool = False, replacement: float = 0.0,
-               errors: Text = "raise"):
+    def __init__(self,
+                 fill_nans: bool = False,
+                 replacement: float = 0.0,
+                 errors: Text = "raise",
+                 name: Text = None):
+
+        super(NaNChecker, self).__init__(name=name)
+
         self.fill_nans = fill_nans
         self.replacement = replacement
         error_options = ["raise", "coerce", "ignore"]

@@ -14,6 +14,7 @@ from ode_explorer.model import ODEModel
 from ode_explorer.callbacks import Callback
 from ode_explorer.metrics import Metric
 from ode_explorer.constants import DYNAMIC_MAX_STEPS, DYNAMIC_INITIAL_H
+from ode_explorer.constants import ZIPPED, VARIABLES
 from ode_explorer.stepsizecontroller import StepsizeController
 
 from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
@@ -57,8 +58,11 @@ class Integrator:
 
         self.logger.info("Created an Integrator instance.")
 
-    def _reset_step_counter(self):
+    def _reset(self):
+        # Hard reset all data and step counts
         self._step_count = 0
+        self.result_data = []
+        self.metric_data = []
 
     def write_data_to_file(self, model, data_outfile: Text = None):
         data_outfile = data_outfile or "run_" + \
@@ -134,7 +138,7 @@ class Integrator:
                              "arguments \"end\", \"h\" and \"num_steps\".")
 
         if reset_step_counter:
-            self._reset_step_counter()
+            self._reset()
 
         # Register the missing of the 4 arguments
         if not end:
@@ -166,11 +170,11 @@ class Integrator:
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
-        iterator = range(1, num_steps + 2)
+        iterator = range(1, num_steps + 1)
 
         if self.progress_bar:
             # register to tqdm
-            iterator = trange(1, num_steps + 2)
+            iterator = trange(1, num_steps + 1)
 
         for i in iterator:
             if self._pre_step_hook:
@@ -224,7 +228,7 @@ class Integrator:
                               end: float,
                               initial_h: float = None,
                               max_steps: int = None,
-                              reset_step_counter: bool = True,
+                              reset: bool = True,
                               verbosity: int = logging.INFO,
                               data_outfile: Text = None,
                               logfile: Text = None,
@@ -251,8 +255,8 @@ class Integrator:
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
 
-        if reset_step_counter:
-            self._reset_step_counter()
+        if reset:
+            self._reset()
 
         start = float(initial_state[model.indep_name])
 
@@ -264,7 +268,7 @@ class Integrator:
             self.logger.warning(f"No maximum step count supplied, falling "
                                 f"back to builtin initial step size "
                                 f"of {DYNAMIC_INITIAL_H}.")
-            max_steps = DYNAMIC_INITIAL_H
+            initial_h = DYNAMIC_INITIAL_H
 
         if not max_steps:
             self.logger.warning(f"No maximum step count supplied, falling "
@@ -359,15 +363,25 @@ class Integrator:
 
         return self
 
-    def visualize(self, model: ODEModel, ax=None):
+    # TODO: Save some type of run metadata to avoid having to pass
+    #  the whole model object
+    def return_result_data(self, model: ODEModel) -> pd.DataFrame:
+        first_step = self.result_data[1]
 
-        for i, res in enumerate(self.result_data):
-            if not all(key in res for key in model.dim_names):
+        result_format = infer_dict_format(first_step, model=model)
+
+        if result_format != ZIPPED:
+            for i, res in enumerate(self.result_data):
                 self.result_data[i] = convert_to_zipped(res, model)
 
-        df = pd.DataFrame(self.result_data)
+        return pd.DataFrame(self.result_data)
+
+    def return_metrics(self, model: ODEModel) -> pd.DataFrame:
+
+        return pd.DataFrame(self.metric_data)
+
+    def visualize(self, model: ODEModel, ax=None):
+
+        df = self.return_result_data(model=model)
 
         df.plot(ax=ax)
-
-
-    # TODO: expose member function for returning a result dataframe

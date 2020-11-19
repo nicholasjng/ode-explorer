@@ -45,9 +45,6 @@ class NaNChecker(Callback):
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> None:
 
-        state = locals["state_dict"]
-        updated_state = locals["updated_state_dict"]
-
         # only check new state as old is assumed to be sensible,
         # i.e. not having nans
         keys = list(updated_state.keys())
@@ -86,5 +83,4 @@ class NaNChecker(Callback):
                                         "was set to {errors}, NaN values "
                                         "will be ignored. This will most "
                                         "likely have severe effects on your "
-                                        "computation.".format(
-                                        errors=self.errors))
+                                        "computation.".format(errors=self.errors))

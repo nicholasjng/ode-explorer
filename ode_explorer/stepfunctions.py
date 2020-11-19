@@ -4,7 +4,7 @@ from typing import Dict, Text, Union, Tuple
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import DataFormatKeys
 from ode_explorer.templates import StepFunction
-from ode_explorer.utils.data_utils import is_scalar
+from ode_explorer.utils.helpers import is_scalar
 
 from scipy.optimize import root, root_scalar
 # import jax.numpy as jnp
@@ -225,7 +225,7 @@ class DOPRI45(StepFunction):
                 h: float,
                 input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Tuple[Dict[Text, Union[np.ndarray, float]],
-                                  Dict[Text, Union[np.ndarray, float]]]:
+                                   Dict[Text, Union[np.ndarray, float]]]:
         t, y = self.get_data_from_state(model=model,
                                         state=state,
                                         input_format=input_format)
@@ -348,8 +348,7 @@ class AdamsBashforth2(StepFunction):
         self.ready = False
 
     def perform_startup_calculation(self, model: ODEModel,
-                                    state: Dict[Text,
-                                                     Union[np.ndarray, float]],
+                                    state: Dict[Text, Union[np.ndarray, float]],
                                     h: float,
                                     input_format: Text = DataFormatKeys.VARIABLES,
                                     **kwargs):

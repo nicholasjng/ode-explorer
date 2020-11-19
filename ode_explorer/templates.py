@@ -4,7 +4,7 @@ import logging
 from ode_explorer.model import ODEModel
 from ode_explorer.constants import DataFormatKeys
 from typing import Text, Dict, Union
-from ode_explorer.utils.data_utils import is_scalar
+from ode_explorer.utils.helpers import is_scalar
 from scipy.optimize import root, root_scalar
 
 logging.basicConfig(level=logging.DEBUG)
@@ -279,8 +279,7 @@ class ExplicitMultistepMethod(StepFunction):
                  b_coeffs: np.ndarray,
                  output_format: Text = DataFormatKeys.VARIABLES,
                  order: int = 0):
-        super(ExplicitMultistepMethod, self).__init__(output_format=
-                                                      output_format)
+        super(ExplicitMultistepMethod, self).__init__(output_format=output_format)
         self.order = order
         # startup calculation variables, only for multistep methods
         self.ready = False
@@ -304,8 +303,7 @@ class ExplicitMultistepMethod(StepFunction):
         self.ready = False
 
     def perform_startup_calculation(self, model: ODEModel,
-                                    state: Dict[Text,
-                                                     Union[np.ndarray, float]],
+                                    state: Dict[Text, Union[np.ndarray, float]],
                                     h: float,
                                     input_format: Text = DataFormatKeys.VARIABLES,
                                     **kwargs):
@@ -409,8 +407,7 @@ class ImplicitMultistepMethod(StepFunction):
                  output_format: Text = DataFormatKeys.VARIABLES,
                  order: int = 0,
                  **kwargs):
-        super(ImplicitMultistepMethod, self).__init__(output_format=
-                                                      output_format)
+        super(ImplicitMultistepMethod, self).__init__(output_format=output_format)
         self.order = order
         # startup calculation variables, only for multistep methods
         self.ready = False
@@ -438,8 +435,7 @@ class ImplicitMultistepMethod(StepFunction):
 
     def perform_startup_calculation(self,
                                     model: ODEModel,
-                                    state: Dict[Text,
-                                                     Union[np.ndarray, float]],
+                                    state: Dict[Text, Union[np.ndarray, float]],
                                     h: float,
                                     input_format: Text = DataFormatKeys.VARIABLES,
                                     **kwargs):

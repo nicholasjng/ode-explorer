@@ -30,3 +30,4 @@ class RunMetadataKeys:
     DIM_NAMES = "dim_names"
     VARIABLE_NAMES = "variable_names"
     TIMESTAMP = "timestamp"
+    STEPFUNC_OUTPUT_FORMAT = "stepfunc_output_format"

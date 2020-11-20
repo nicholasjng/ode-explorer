@@ -58,6 +58,22 @@ def validate_const_h_loop(run_config: Dict[Text, Any]):
     num_steps = run_config[RunConfigKeys.NUM_STEPS]
     h = run_config[RunConfigKeys.STEP_SIZE]
 
+    # arg checks for time stepping
+    stepping_data = [bool(end), bool(h), bool(num_steps)]
+
+    if not isinstance(start, float):
+        raise ValueError("A float value has to be given for the "
+                         "\"start\" variable.")
+
+    if end and (start > end):
+        raise ValueError("The upper integration bound has to be larger "
+                         "than the starting value.")
+
+    if stepping_data.count(True) != 2:
+        raise ValueError("Error: This Integrator run is mis-configured. "
+                         "You should specify exactly two of the "
+                         "arguments \"end\", \"h\" and \"num_steps\".")
+
     # Register the missing of the 4 arguments
     if not end:
         end = start + h * num_steps

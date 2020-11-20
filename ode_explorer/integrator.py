@@ -118,28 +118,16 @@ class Integrator:
         # initialize dimension names
         model.initialize_dim_names(initial_state)
 
+        run_metadata.update({RunMetadataKeys.DIM_NAMES: model.dim_names,
+                             RunMetadataKeys.VARIABLE_NAMES: model.variable_names,
+                             RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT: step_func.output_format})
+
         input_format = infer_dict_format(state_dict=initial_state, model=model)
 
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
 
-        # arg checks for time stepping
-        stepping_data = [bool(end), bool(h), bool(num_steps)]
-
         start = initial_state[model.indep_name]
-
-        if not isinstance(start, float):
-            raise ValueError("A float value has to be given for the "
-                             "\"start\" variable.")
-
-        if end and (start > end):
-            raise ValueError("The upper integration bound has to be larger "
-                             "than the starting value.")
-
-        if stepping_data.count(True) != 2:
-            raise ValueError("Error: This Integrator run is mis-configured. "
-                             "You should specify exactly two of the "
-                             "arguments \"end\", \"h\" and \"num_steps\".")
 
         run_config = {RunConfigKeys.START: start,
                       RunConfigKeys.END: end,

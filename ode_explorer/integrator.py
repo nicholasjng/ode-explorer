@@ -7,15 +7,16 @@ import numpy as np
 #import matplotlib.pyplot as plt
 
 from tqdm import trange
-from typing import Dict, Callable, Text, List, Union
+from typing import Dict, Callable, Text, List, Union, Any
 
 from ode_explorer.templates import StepFunction
 from ode_explorer.model import ODEModel
 from ode_explorer.callbacks import Callback
 from ode_explorer.metrics import Metric
 from ode_explorer.constants import DataFormatKeys, DynamicVariables, \
-    RunMetadataKeys
+    RunKeys, RunMetadataKeys, RunConfigKeys
 from ode_explorer.stepsizecontroller import StepsizeController
+from ode_explorer.integrator_loops import constant_h_loop
 
 from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
 from ode_explorer.utils.data_utils import infer_dict_format
@@ -63,8 +64,6 @@ class Integrator:
         # Hard reset all data and step counts
         self._step_count = 0
         self.runs = []
-        self.result_data = []
-        self.metric_data = []
 
     def write_data_to_file(self, model, data_outfile: Text = None):
         data_outfile = data_outfile or "run_" + \
@@ -88,6 +87,7 @@ class Integrator:
         self.logger.info('Creating an Integrator instance.')
 
     def _startup(self,
+                 run: Dict[Text, Any],
                  model: ODEModel,
                  step_func: StepFunction,
                  initial_state: Dict[Text, Union[np.ndarray, float]],
@@ -99,11 +99,13 @@ class Integrator:
                  logfile: Text,
                  callbacks: List[Callback],
                  metrics: List[Metric]):
-        run = {}
+
+        run.update({RunKeys.RESULT_DATA: [], RunKeys.METRICS: []})
+
         run_metadata = {RunMetadataKeys.METRIC_NAMES:
-                            [m.__name__ for m in metrics],
+                        [m.__name__ for m in metrics],
                         RunMetadataKeys.CALLBACK_NAMES:
-                            [c.__name__ for c in callbacks],
+                        [c.__name__ for c in callbacks],
                         RunMetadataKeys.TIMESTAMP: datetime.datetime.now()}
 
         # create file handler
@@ -139,10 +141,25 @@ class Integrator:
                              "You should specify exactly two of the "
                              "arguments \"end\", \"h\" and \"num_steps\".")
 
+        run_config = {RunConfigKeys.START: start,
+                      RunConfigKeys.END: end,
+                      RunConfigKeys.STEP_SIZE: h,
+                      RunConfigKeys.NUM_STEPS: num_steps}
+
+        run[RunKeys.RUN_CONFIG] = run_config
+
         if reset_step_counter:
             self._reset()
 
-        return run, run_metadata
+        # append the initial state
+        run[RunKeys.RESULT_DATA].append(initial_state)
+
+        metric_dict = {}
+
+        for metric in metrics:
+            val = metric(0, initial_state, initial_state, model, locals())
+            metric_dict[metric.__name__] = val
+        run[RunKeys.METRICS].append(metric_dict)
 
     def integrate_const(self,
                         model: ODEModel,
@@ -159,100 +176,56 @@ class Integrator:
                         callbacks: List[Callback] = None,
                         metrics: List[Metric] = None):
 
+        # construct run object
+        run = {}
+
         # callbacks and metrics, to be executed/computed after the step
         callbacks = callbacks or []
         metrics = metrics or []
 
-        run, run_metadata = self._startup(model=model,
-                                          step_func=step_func,
-                                          initial_state=initial_state,
-                                          end=end,
-                                          h=h,
-                                          num_steps=num_steps,
-                                          reset_step_counter=reset_step_counter,
-                                          verbosity=verbosity,
-                                          logfile=logfile,
-                                          callbacks=callbacks,
-                                          metrics=metrics)
-
-        start = initial_state[model.indep_name]
-
-        # Register the missing of the 4 arguments
-        if not end:
-            end = start + h * num_steps
-        elif not h:
-            h = (end - start) / num_steps
-            integrator_logger.warning(
-                            "No step size was supplied. The step size will be "
-                            "set according to the given start, end "
-                            "and num_steps values. This can potentially have "
-                            "a negative affect on accuracy.")
-        elif not num_steps:
-            num_steps = int((end - start) / h)
-
-        flush_data_every = flush_data_every or num_steps + 1
+        self._startup(run=run,
+                      model=model,
+                      step_func=step_func,
+                      initial_state=initial_state,
+                      end=end,
+                      h=h,
+                      num_steps=num_steps,
+                      reset_step_counter=reset_step_counter,
+                      verbosity=verbosity,
+                      logfile=logfile,
+                      callbacks=callbacks,
+                      metrics=metrics)
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
-        self.result_data.append(initial_state)
-
-        metric_dict = {"iteration": 0, "step_size": h}
-
-        for metric in metrics:
-            val = metric(0, state, state, model, locals())
-            metric_dict[metric.__name__] = val
-        self.metric_data.append(metric_dict)
 
         self.logger.info("Starting integration.")
-
-        # treat initial state as state 0
-        iterator = range(1, num_steps + 1)
 
         if self.progress_bar:
             # register to tqdm
             iterator = trange(1, num_steps + 1)
+        else:
+            # treat initial state as state 0
+            iterator = range(1, num_steps + 1)
 
-        for i in iterator:
-            if self._pre_step_hook:
-                self._pre_step_hook()
-
-            updated_state = step_func.forward(model, state, h)
-
-            # adding the current iteration number and time stamp
-            metric_dict = {"iteration": i,
-                           "step_size": h}
-
-            for metric in metrics:
-                val = metric(i, state, updated_state, model, locals())
-                metric_dict[metric.__name__] = val
-
-            self.metric_data.append(metric_dict)
-
-            # execute the registered callbacks after the step
-            for callback in callbacks:
-                callback(i, state, updated_state, model, locals())
-
-            self.result_data.append(updated_state)
-
-            # TODO: Outsource this into a callback
-            if i % flush_data_every == 0:
-                self.write_data_to_file(data_outfile)
-                self.result_data = []
-
-            # update delayed after callback execution so that callbacks have
-            # access to both the previous and the current state
-            state.update(updated_state)
-
-            self._step_count += 1
+        constant_h_loop(run=run,
+                        iterator=iterator,
+                        step_func=step_func,
+                        model=model,
+                        h=h,
+                        state=state,
+                        callbacks=callbacks,
+                        metrics=metrics)
 
         self.logger.info("Finished integration.")
 
-        if self.result_data:
-            if data_outfile:
-                self.write_data_to_file(model=model, data_outfile=data_outfile)
+        if data_outfile:
+            self.write_data_to_file(model=model, data_outfile=data_outfile)
 
-                self.logger.info("Results written to file {}.".format(
-                    os.path.join(self.log_dir, data_outfile)))
+            self.logger.info("Results written to file {}.".format(
+                os.path.join(self.log_dir, data_outfile)))
+
+        self.runs.append(run)
 
         return self
 

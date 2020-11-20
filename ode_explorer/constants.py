@@ -14,6 +14,14 @@ class RunKeys:
     RESULT_DATA = "result_data"
     METRICS = "metrics"
     RUN_METADATA = "run_metadata"
+    RUN_CONFIG = "run_config"
+
+
+class RunConfigKeys:
+    START = "start"
+    END = "end"
+    NUM_STEPS = "num_steps"
+    STEP_SIZE = "h"
 
 
 class RunMetadataKeys:

@@ -234,6 +234,7 @@ class Integrator:
 
             self.result_data.append(updated_state)
 
+            # TODO: Outsource this into a callback
             if i % flush_data_every == 0:
                 self.write_data_to_file(data_outfile)
                 self.result_data = []
@@ -302,14 +303,14 @@ class Integrator:
         if not initial_h:
             self.logger.warning(f"No maximum step count supplied, falling "
                                 f"back to builtin initial step size "
-                                f"of {DynamicVariables.DYNAMIC_INITIAL_H}.")
-            initial_h = DynamicVariables.DYNAMIC_INITIAL_H
+                                f"of {DynamicVariables.INITIAL_H}.")
+            initial_h = DynamicVariables.INITIAL_H
 
         if not max_steps:
             self.logger.warning(f"No maximum step count supplied, falling "
                                 f"back to builtin maximum step count "
-                                f"of {DynamicVariables.DYNAMIC_MAX_STEPS}.")
-            max_steps = DynamicVariables.DYNAMIC_MAX_STEPS
+                                f"of {DynamicVariables.MAX_STEPS}.")
+            max_steps = DynamicVariables.MAX_STEPS
 
         flush_data_every = flush_data_every or max_steps + 1
 

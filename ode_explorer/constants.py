@@ -6,8 +6,8 @@ class DataFormatKeys:
 
 # dynamic (step size integration) variables)
 class DynamicVariables:
-    DYNAMIC_MAX_STEPS = 10000
-    DYNAMIC_INITIAL_H = 0.01
+    MAX_STEPS = 10000
+    INITIAL_H = 0.01
 
 
 class RunKeys:

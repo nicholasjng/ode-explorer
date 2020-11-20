@@ -21,7 +21,7 @@ class StepFunction:
                  order: int = 0):
         # order of the method
         self.order = order
-        if output_format not in DataFormatKeys:
+        if output_format not in [DataFormatKeys.VARIABLES, DataFormatKeys.ZIPPED]:
             raise ValueError(f"Error: Output format \"{output_format}\" not "
                              f"understood.")
         self.output_format = output_format

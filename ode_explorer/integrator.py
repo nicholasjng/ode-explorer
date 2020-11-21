@@ -99,13 +99,7 @@ class Integrator:
                  callbacks: List[Callback],
                  metrics: List[Metric]):
 
-        run.update({RunKeys.RESULT_DATA: [], RunKeys.METRICS: []})
-
-        run_metadata = {RunMetadataKeys.METRIC_NAMES:
-                        [m.__name__ for m in metrics],
-                        RunMetadataKeys.CALLBACK_NAMES:
-                        [c.__name__ for c in callbacks],
-                        RunMetadataKeys.TIMESTAMP: datetime.datetime.now(),
+        run_metadata = {RunMetadataKeys.TIMESTAMP: datetime.datetime.now(),
                         RunMetadataKeys.RUN_ID: uuid.uuid4(),
                         RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT: step_func.output_format}
 
@@ -119,8 +113,6 @@ class Integrator:
         # initialize dimension names
         model.initialize_dim_names(initial_state)
 
-        run_metadata.update({RunMetadataKeys.MODEL_METADATA: model.get_metadata()})
-
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
 
@@ -129,15 +121,15 @@ class Integrator:
         run_config = {RunConfigKeys.START: start,
                       RunConfigKeys.END: end,
                       RunConfigKeys.STEP_SIZE: h,
-                      RunConfigKeys.NUM_STEPS: num_steps}
-
-        run[RunKeys.RUN_CONFIG] = run_config
+                      RunConfigKeys.NUM_STEPS: num_steps,
+                      RunConfigKeys.METRIC_NAMES:
+                          [m.__name__ for m in metrics],
+                      RunConfigKeys.CALLBACK_NAMES:
+                          [c.__name__ for c in callbacks]
+                      }
 
         if reset:
             self._reset()
-
-        # append the initial state
-        run[RunKeys.RESULT_DATA].append(initial_state)
 
         initial_metrics = {}
 
@@ -151,7 +143,11 @@ class Integrator:
                                     "n_accept": 0,
                                     "n_reject": 0})
 
-        run[RunKeys.METRICS].append(initial_metrics)
+        run.update({RunKeys.MODEL_METADATA: model.get_metadata(),
+                    RunKeys.RUN_METADATA: run_metadata,
+                    RunKeys.RUN_CONFIG: run_config,
+                    RunKeys.RESULT_DATA: [initial_state],
+                    RunKeys.METRICS: [initial_metrics]})
 
     def integrate_const(self,
                         model: ODEModel,
@@ -160,7 +156,7 @@ class Integrator:
                         end: float = None,
                         h: float = None,
                         num_steps: int = None,
-                        reset: bool = True,
+                        reset: bool = False,
                         verbosity: int = 0,
                         data_outfile: Text = None,
                         logfile: Text = None,
@@ -230,7 +226,7 @@ class Integrator:
                               end: float,
                               initial_h: float = None,
                               max_steps: int = None,
-                              reset: bool = True,
+                              reset: bool = False,
                               verbosity: int = logging.INFO,
                               data_outfile: Text = None,
                               logfile: Text = None,
@@ -264,11 +260,11 @@ class Integrator:
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
-        iterator = range(1, max_steps + 1)
-
         if self.progress_bar:
             # register to tqdm
             iterator = trange(1, max_steps + 1)
+        else:
+            iterator = range(1, max_steps + 1)
 
         dynamic_h_loop(run=run,
                        iterator=iterator,
@@ -294,26 +290,31 @@ class Integrator:
         return self
 
     def list_runs(self, tablefmt: Text = "github"):
+        if len(self.runs) == 0:
+            print("No runs available!")
+            return
+
         metadata_list = [run[RunKeys.RUN_METADATA] for run in self.runs]
 
-        print(tabulate(metadata_list, tablefmt=tablefmt))
+        print(tabulate(metadata_list, headers="keys", tablefmt=tablefmt))
 
     def get_run_by_id(self, run_id: Text):
+        if len(self.runs) == 0:
+            raise ValueError("No runs available. Integrate a model first.")
+        # TODO: Expand this logic to pattern matching
         try:
-            run = next(r for r in self.runs if r[RunKeys.RUN_METADATA][RunMetadataKeys.RUN_ID].startswith(run_id))
+            run = next(r for r in self.runs if str(r[RunKeys.RUN_METADATA][RunMetadataKeys.RUN_ID]).startswith(run_id))
         except StopIteration:
-            raise ValueError(f"Error: Run with ID {run_id} not found.")
+            raise ValueError(f"Run with ID {run_id} not found.")
 
         return run
 
-    # TODO: Save some type of run metadata to avoid having to pass
-    #  the whole model object
     def return_result_data(self, run_id: Text) -> pd.DataFrame:
         run = self.get_run_by_id(run_id=run_id)
 
         # TODO: This is ugly
         output_format = run[RunKeys.RUN_METADATA][RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT]
-        model_metadata = run[RunKeys.RUN_METADATA][RunMetadataKeys.MODEL_METADATA]
+        model_metadata = run[RunKeys.MODEL_METADATA]
 
         run_result = copy.deepcopy(run[RunKeys.RESULT_DATA])
         if output_format != DataFormatKeys.ZIPPED:

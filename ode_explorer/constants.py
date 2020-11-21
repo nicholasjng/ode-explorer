@@ -15,22 +15,22 @@ class RunKeys:
     METRICS = "metrics"
     RUN_METADATA = "run_metadata"
     RUN_CONFIG = "run_config"
-
+    MODEL_METADATA = "model_metadata"
 
 class RunConfigKeys:
     START = "start"
     END = "end"
     NUM_STEPS = "num_steps"
     STEP_SIZE = "h"
+    METRIC_NAMES = "metric_names"
+    CALLBACK_NAMES = "callback_names"
 
 
 class RunMetadataKeys:
-    METRIC_NAMES = "metric_names"
-    CALLBACK_NAMES = "callback_names"
     TIMESTAMP = "timestamp"
     STEPFUNC_OUTPUT_FORMAT = "stepfunc_output_format"
     RUN_ID = "run_id"
-    MODEL_METADATA = "model_metadata"
+
 
 
 class ModelMetadataKeys:

@@ -12,7 +12,7 @@ setuptools.setup(
     description="A small ODE Python package",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/njunge94/explode",
+    url="https://github.com/njunge94/ode-explorer",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

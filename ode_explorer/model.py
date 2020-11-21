@@ -2,7 +2,7 @@ import numpy as np
 from typing import Callable, Dict, Any, Text, List, Union
 from ode_explorer.utils.import_utils import import_func_from_module
 from ode_explorer.utils.helpers import is_scalar
-from ode_explorer.constants import ODEModelDataKeys
+from ode_explorer.constants import ModelMetadataKeys
 
 
 class ODEModel:
@@ -86,9 +86,9 @@ class ODEModel:
                 self.dim_names = dims
 
     def get_metadata(self):
-        return {ODEModelDataKeys.INDEP_NAME: self.indep_name,
-                ODEModelDataKeys.VARIABLE_NAMES: self.variable_names,
-                ODEModelDataKeys.DIM_NAMES: self.dim_names}
+        return {ModelMetadataKeys.INDEP_NAME: self.indep_name,
+                ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
+                ModelMetadataKeys.DIM_NAMES: self.dim_names}
 
     def __call__(self, t: float, y: np.ndarray, **kwargs) -> np.ndarray:
         """

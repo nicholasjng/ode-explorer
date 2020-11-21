@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
-from ode_explorer.model import ODEModel
-from ode_explorer.constants import DataFormatKeys
+from ode_explorer.constants import DataFormatKeys, ModelMetadataKeys
 from ode_explorer.utils.helpers import is_scalar
 from typing import List, Dict, Text, Any, Union
 
@@ -14,51 +13,64 @@ def make_log_dir():
     pass
 
 
-def convert_to_zipped(state_dict: Dict[Text, Any], model: ODEModel):
-    t = state_dict[model.indep_name]
-    y = state_dict[model.variable_names[0]]
+def convert_to_zipped(state_dict: Dict[Text, Any], model_metadata: Dict[Text, Any]):
+    indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
+    variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
+    dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
+
+    t = state_dict[indep_name]
+    y = state_dict[variable_names[0]]
 
     # small check for a default value in the scalar case (n = 1)
     if is_scalar(y):
-        return {model.indep_name: t, model.dim_names[0]: y}
-    return {model.indep_name: t, **dict(zip(model.dim_names, y))}
+        return {indep_name: t, dim_names[0]: y}
+    return {indep_name: t, **dict(zip(dim_names, y))}
 
 
-def convert_from_zipped(state_dict: Dict[Text, Any], model: ODEModel):
-    t = state_dict[model.indep_name]
-    y = np.array([state_dict[key] for key in model.dim_names])
+def convert_from_zipped(state_dict: Dict[Text, Any], model_metadata: Dict[Text, Any]):
+    indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
+    variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
+    dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
 
-    if len(model.dim_names) == 1:
-        return {model.indep_name: t, model.variable_names[0]: y[0]}
-    return {model.indep_name: t, model.variable_names[0]: y}
+    t = state_dict[indep_name]
+    y = np.array([state_dict[key] for key in dim_names])
+
+    if len(dim_names) == 1:
+        return {indep_name: t, variable_names[0]: y[0]}
+    return {indep_name: t, variable_names[0]: y}
 
 
-def convert_state_dict(state_dict: Dict[Text, Any], model: ODEModel,
+def convert_state_dict(state_dict: Dict[Text, Any],
+                       model_metadata: Dict[Text, Any],
                        input_format: Text = None,
                        output_format: Text = DataFormatKeys.ZIPPED):
     # infer dict mode by presence of variable name
     if not input_format:
-        input_format = infer_dict_format(state_dict=state_dict, model=model)
+        input_format = infer_dict_format(state_dict=state_dict, model_metadata=model_metadata)
 
     if input_format == output_format:
         return state_dict
 
     if output_format == DataFormatKeys.ZIPPED:
-        return convert_to_zipped(state_dict=state_dict, model=model)
+        return convert_to_zipped(state_dict=state_dict, model_metadata=model_metadata)
     else:
-        return convert_from_zipped(state_dict=state_dict, model=model)
+        return convert_from_zipped(state_dict=state_dict, model_metadata=model_metadata)
 
 
 def infer_dict_format(state_dict: Dict[Text, Union[float, np.ndarray]],
-                      model: ODEModel):
+                      model_metadata: Dict[Text, Any]):
 
-    if all(var in state_dict for var in model.variable_names):
+    indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
+    variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
+    dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
+
+    if all(var in state_dict for var in variable_names):
         # this is the case of a scalar ODE, where ZIPPED and VARIABLES are
         # the same
         if not any(isinstance(v, np.ndarray) for v in state_dict.values()):
             return DataFormatKeys.ZIPPED
         return DataFormatKeys.VARIABLES
-    elif all(dim in state_dict for dim in model.dim_names):
+    elif all(dim in state_dict for dim in dim_names):
         return DataFormatKeys.ZIPPED
     else:
         raise ValueError("Error: Unrecognizable state dict format. Something "
@@ -66,7 +78,7 @@ def infer_dict_format(state_dict: Dict[Text, Union[float, np.ndarray]],
 
 
 def write_to_file(result_data: List[Dict[Text, float]],
-                  model: ODEModel,
+                  model_metadata: Dict[Text, Any],
                   out_dir: Text,
                   outfile_name: Text,
                   **kwargs) -> None:
@@ -86,7 +98,7 @@ def write_to_file(result_data: List[Dict[Text, float]],
     file_ext = ".csv"
 
     for i, res in enumerate(result_data):
-        result_data[i] = convert_to_zipped(res, model)
+        result_data[i] = convert_to_zipped(res, model_metadata=model_metadata)
 
     # convert result_list to data frame
     # fast construction from list with schema dict

@@ -27,7 +27,14 @@ class RunConfigKeys:
 class RunMetadataKeys:
     METRIC_NAMES = "metric_names"
     CALLBACK_NAMES = "callback_names"
-    DIM_NAMES = "dim_names"
-    VARIABLE_NAMES = "variable_names"
     TIMESTAMP = "timestamp"
     STEPFUNC_OUTPUT_FORMAT = "stepfunc_output_format"
+    RUN_ID = "run_id"
+    MODEL_METADATA = "model_metadata"
+
+
+class ModelMetadataKeys:
+    DIM_NAMES = "dim_names"
+    VARIABLE_NAMES = "variable_names"
+    INDEP_NAME = "indep_name"
+

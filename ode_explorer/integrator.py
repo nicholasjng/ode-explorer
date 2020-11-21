@@ -1,33 +1,37 @@
-import pandas as pd
-import os
-import datetime
 import copy
+import datetime
 import logging
-import numpy as np
+import os
 import uuid
-# import matplotlib.pyplot as plt
-
-from tqdm import trange
-from tabulate import tabulate
 from typing import Dict, Callable, Text, List, Union, Any
 
-from ode_explorer.templates import StepFunction
-from ode_explorer.model import ODEModel
+import absl.logging
+import numpy as np
+import pandas as pd
+from tabulate import tabulate
+from tqdm import trange
+
 from ode_explorer.callbacks import Callback
-from ode_explorer.metrics import Metric
 from ode_explorer.constants import DataFormatKeys, RunKeys, RunMetadataKeys, RunConfigKeys
-from ode_explorer.stepsizecontroller import StepsizeController
 from ode_explorer.integrator_loops import constant_h_loop, dynamic_h_loop
+from ode_explorer.metrics import Metric
+from ode_explorer.model import ODEModel
+from ode_explorer.stepsizecontroller import StepsizeController
+from ode_explorer.templates import StepFunction
 from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
 
-logging.basicConfig(level=logging.DEBUG)
+# import matplotlib.pyplot as plt
+
+
 integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")
+integrator_logger.setLevel(logging.INFO)
 
 
 class Integrator:
     """
     Base class for all ODE integrators.
     """
+
     def __init__(self,
                  pre_step_hook: Callable = None,
                  log_dir: Text = None,
@@ -65,7 +69,7 @@ class Integrator:
 
     def write_data_to_file(self, model, data_outfile: Text = None):
         data_outfile = data_outfile or "run_" + \
-                        datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+                       datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
         write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
@@ -78,8 +82,10 @@ class Integrator:
 
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
+        ch.setFormatter(absl.logging.PythonFormatter())
         fh = logging.FileHandler(os.path.join(self.log_dir, self.logfile_name))
         fh.setLevel(logging.INFO)
+        fh.setFormatter(absl.logging.PythonFormatter())
         self.logger.addHandler(ch)
         self.logger.addHandler(fh)
         self.logger.info('Creating an Integrator instance.')
@@ -300,10 +306,11 @@ class Integrator:
 
     def get_run_by_id(self, run_id: Text):
         if len(self.runs) == 0:
-            raise ValueError("No runs available. Integrate a model first.")
-        # TODO: Expand this logic to pattern matching
+            raise ValueError("No runs available. Please integrate a model first!")
+        if run_id == "latest":
+            return self.runs[-1]
         try:
-            run = next(r for r in self.runs if str(r[RunKeys.RUN_METADATA][RunMetadataKeys.RUN_ID]).startswith(run_id))
+            run = next(r for r in self.runs if run_id in str(r[RunKeys.RUN_METADATA][RunMetadataKeys.RUN_ID]))
         except StopIteration:
             raise ValueError(f"Run with ID {run_id} not found.")
 

@@ -1,15 +1,17 @@
-import numpy as np
 from typing import Callable, Dict, Any, Text, List, Union
-from ode_explorer.utils.import_utils import import_func_from_module
-from ode_explorer.utils.helpers import is_scalar
+
+import numpy as np
+
 from ode_explorer.constants import ModelMetadataKeys
+from ode_explorer.utils.helpers import is_scalar
+from ode_explorer.utils.import_utils import import_func_from_module
 
 
 class ODEModel:
     """
     Base class for all ODE models.
     """
-    # TODO: Make a function to infer the model dimension from the initial state
+
     def __init__(self,
                  module_path: Text = None,
                  ode_fn_name: Text = None,

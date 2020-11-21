@@ -1,6 +1,8 @@
-import numpy as np
-from ode_explorer.model import ODEModel
 from typing import Dict, Text, Any, Union, Tuple
+
+import numpy as np
+
+from ode_explorer.model import ODEModel
 
 
 class StepsizeController:
@@ -21,7 +23,6 @@ class DOPRI45Controller(StepsizeController):
                  fac_min: float = 0.2,
                  fac_max: float = 5.0,
                  safety_factor: float = 0.9):
-
         self.atol = atol
         self.rtol = rtol
         # maximal step size reduction factor
@@ -38,7 +39,6 @@ class DOPRI45Controller(StepsizeController):
                  updated_state: Dict[Text, Union[np.ndarray, float]],
                  model: ODEModel,
                  locals: Dict[Text, Any]) -> Tuple[bool, float]:
-
         order4, order5 = updated_state
 
         # TODO: This only works for y' = f(t,y) type situations

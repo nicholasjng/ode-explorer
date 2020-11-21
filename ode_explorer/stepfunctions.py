@@ -1,12 +1,13 @@
-import numpy as np
-# import inspect
 from typing import Dict, Text, Union, Tuple
-from ode_explorer.model import ODEModel
+
+import numpy as np
+from scipy.optimize import root, root_scalar
+
 from ode_explorer.constants import DataFormatKeys
+from ode_explorer.model import ODEModel
 from ode_explorer.templates import StepFunction
 from ode_explorer.utils.helpers import is_scalar
 
-from scipy.optimize import root, root_scalar
 # import jax.numpy as jnp
 # from jax import grad, jit, vmap
 
@@ -34,7 +35,6 @@ class EulerMethod(StepFunction):
                 h: float,
                 input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-
         t, y = self.get_data_from_state(model=model,
                                         state=state,
                                         input_format=input_format)
@@ -62,7 +62,6 @@ class HeunMethod(StepFunction):
                 h: float,
                 input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-
         t, y = self.get_data_from_state(model=model,
                                         state=state,
                                         input_format=input_format)
@@ -155,7 +154,6 @@ class DOPRI5(StepFunction):
                 h: float,
                 input_format: Text = DataFormatKeys.VARIABLES,
                 **kwargs) -> Dict[Text, Union[np.ndarray, float]]:
-
         t, y = self.get_data_from_state(model=model,
                                         state=state,
                                         input_format=input_format)
@@ -197,6 +195,7 @@ class DOPRI45(StepFunction):
     dict with two y values, one accurate of order 4 and the other of order 5
     (hence the name), which can be used for step size estimation.
     """
+
     def __init__(self, output_format: Text = DataFormatKeys.VARIABLES):
         super(DOPRI45, self).__init__(output_format=output_format)
         self.order = 5
@@ -216,8 +215,8 @@ class DOPRI45(StepFunction):
                            11 / 84])]
 
         # First same as last (FSAL) rule
-        self.gammas = np.array([5179/57600, 0.0, 7571/16695, 393/640,
-                                -92097/339200, 187/2100, 1/40])
+        self.gammas = np.array([5179 / 57600, 0.0, 7571 / 16695, 393 / 640,
+                                -92097 / 339200, 187 / 2100, 1 / 40])
 
     def forward(self,
                 model: ODEModel,
@@ -267,6 +266,7 @@ class ImplicitEulerMethod(StepFunction):
     """
     Implicit Euler Method for ODE solving.
     """
+
     def __init__(self, output_format: Text = DataFormatKeys.VARIABLES, **kwargs):
         super(ImplicitEulerMethod, self).__init__(output_format=output_format)
         self.order = 1

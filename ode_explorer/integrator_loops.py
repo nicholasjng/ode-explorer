@@ -1,12 +1,14 @@
-import numpy as np
 import logging
 from typing import Any, List, Dict, Union, Text
-from ode_explorer.templates import StepFunction
-from ode_explorer.model import ODEModel
+
+import numpy as np
+
 from ode_explorer.callbacks import Callback
-from ode_explorer.metrics import Metric
-from ode_explorer.stepsizecontroller import StepsizeController
 from ode_explorer.constants import RunKeys, RunConfigKeys, DynamicVariables
+from ode_explorer.metrics import Metric
+from ode_explorer.model import ODEModel
+from ode_explorer.stepsizecontroller import StepsizeController
+from ode_explorer.templates import StepFunction
 
 __all__ = ["constant_h_loop", "dynamic_h_loop"]
 
@@ -21,7 +23,6 @@ def constant_h_loop(run: Dict[Text, Any],
                     metrics: List[Metric],
                     sc: StepsizeController = None,
                     logger: logging.Logger = None):
-
     run_config = run[RunKeys.RUN_CONFIG]
 
     validate_const_h_loop(run_config=run_config, logger=logger)
@@ -62,7 +63,6 @@ def dynamic_h_loop(run: Dict[Text, Any],
                    metrics: List[Metric],
                    sc: StepsizeController = None,
                    logger: logging.Logger = None):
-
     run_config = run[RunKeys.RUN_CONFIG]
 
     validate_dynamic_loop(run_config=run_config, logger=logger)
@@ -116,7 +116,6 @@ def dynamic_h_loop(run: Dict[Text, Any],
 
 
 def validate_const_h_loop(run_config: Dict[Text, Any], logger: logging.Logger):
-
     start = run_config[RunConfigKeys.START]
     end = run_config[RunConfigKeys.END]
     num_steps = run_config[RunConfigKeys.NUM_STEPS]

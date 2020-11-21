@@ -1,9 +1,11 @@
+import os
+from typing import List, Dict, Text, Any, Union
+
 import numpy as np
 import pandas as pd
-import os
+
 from ode_explorer.constants import DataFormatKeys, ModelMetadataKeys
 from ode_explorer.utils.helpers import is_scalar
-from typing import List, Dict, Text, Any, Union
 
 __all__ = ["convert_to_zipped", "convert_from_zipped", "convert_state_dict",
            "infer_dict_format", "write_to_file", "make_log_dir"]
@@ -59,7 +61,6 @@ def convert_state_dict(state_dict: Dict[Text, Any],
 
 def infer_dict_format(state_dict: Dict[Text, Union[float, np.ndarray]],
                       model_metadata: Dict[Text, Any]):
-
     indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
     variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
     dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]

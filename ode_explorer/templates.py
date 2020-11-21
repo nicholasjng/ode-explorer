@@ -1,13 +1,13 @@
-import numpy as np
 import logging
-
-from ode_explorer.model import ODEModel
-from ode_explorer.constants import DataFormatKeys
 from typing import Text, Dict, Union
-from ode_explorer.utils.helpers import is_scalar
+
+import numpy as np
 from scipy.optimize import root, root_scalar
 
-logging.basicConfig(level=logging.DEBUG)
+from ode_explorer.constants import DataFormatKeys
+from ode_explorer.model import ODEModel
+from ode_explorer.utils.helpers import is_scalar
+
 templates_logger = logging.getLogger("ode_explorer.templates")
 
 
@@ -252,7 +252,7 @@ class ImplicitRungeKuttaMethod(StepFunction):
 
         if n * m != 1:
             # TODO: Retry here in case of convergence failure?
-            root_res = root(F, x0=ks.reshape((n*m,)),
+            root_res = root(F, x0=ks.reshape((n * m,)),
                             args=args, **self.solver_kwargs)
             # this line ensures that np.sum returns a scalar for a scalar ODE
             axis = None if is_scalar(y) else 1
@@ -514,7 +514,7 @@ class ImplicitMultistepMethod(StepFunction):
             return new_state
 
         def F(x: Union[np.ndarray, float], *args):
-            return h * model(t+h, x, *args) + y - \
+            return h * model(t + h, x, *args) + y - \
                    h * np.sum(self.b_coeffs * self.f_cache, axis=1) - x
 
         if kwargs:

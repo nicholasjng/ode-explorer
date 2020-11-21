@@ -1,10 +1,10 @@
-import numpy as np
 import logging
-from ode_explorer.model import ODEModel
-
 from typing import Dict, Text, Any, Union
 
-logging.basicConfig(level=logging.DEBUG)
+import numpy as np
+
+from ode_explorer.model import ODEModel
+
 callback_logger = logging.getLogger("ode_explorer.callbacks.Callback")
 
 
@@ -62,14 +62,14 @@ class NaNChecker(Callback):
                                  " with a fixed value instead, consider "
                                  "supplying the \"replacement\" argument at "
                                  "callback construction.".format(
-                                  errors=self.errors))
+                    errors=self.errors))
             elif self.errors == "coerce":
                 callback_logger.warning("Encountered at least one NaN "
                                         "value in the state after the ODE "
                                         "step. Filling the NaN values with "
                                         "preset replacement value "
                                         "{replacement}.".format(
-                                         replacement=self.replacement))
+                    replacement=self.replacement))
 
                 # get na_keys by na_mask
                 na_keys = [key for i, key in enumerate(keys) if na_mask[i]]

@@ -17,6 +17,7 @@ class RunKeys:
     RUN_CONFIG = "run_config"
     MODEL_METADATA = "model_metadata"
 
+
 class RunConfigKeys:
     START = "start"
     END = "end"
@@ -32,9 +33,7 @@ class RunMetadataKeys:
     RUN_ID = "run_id"
 
 
-
 class ModelMetadataKeys:
     DIM_NAMES = "dim_names"
     VARIABLE_NAMES = "variable_names"
     INDEP_NAME = "indep_name"
-

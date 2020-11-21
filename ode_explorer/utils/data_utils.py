@@ -65,16 +65,14 @@ def infer_dict_format(state_dict: Dict[Text, Union[float, np.ndarray]],
     dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
 
     if all(var in state_dict for var in variable_names):
-        # this is the case of a scalar ODE, where ZIPPED and VARIABLES are
-        # the same
+        # this is the case of a scalar ODE, where ZIPPED and VARIABLES are the same
         if not any(isinstance(v, np.ndarray) for v in state_dict.values()):
             return DataFormatKeys.ZIPPED
         return DataFormatKeys.VARIABLES
     elif all(dim in state_dict for dim in dim_names):
         return DataFormatKeys.ZIPPED
     else:
-        raise ValueError("Error: Unrecognizable state dict format. Something "
-                         "went wrong.")
+        raise ValueError("Error: Unrecognizable state dict format. Something went wrong.")
 
 
 def write_to_file(result_data: List[Dict[Text, float]],
@@ -84,7 +82,7 @@ def write_to_file(result_data: List[Dict[Text, float]],
                   **kwargs) -> None:
     """
     Small wrapper to write ODE simulation results to a .csv file.
-    :param model: ODE model.
+    :param model_metadata: ODE model metadata.
     :param result_data: Result data to be written to file.
     :param out_dir: Log output directory
     :param outfile_name: Log output file name.

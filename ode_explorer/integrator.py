@@ -18,9 +18,7 @@ from ode_explorer.metrics import Metric
 from ode_explorer.constants import DataFormatKeys, RunKeys, RunMetadataKeys, RunConfigKeys
 from ode_explorer.stepsizecontroller import StepsizeController
 from ode_explorer.integrator_loops import constant_h_loop, dynamic_h_loop
-
 from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
-from ode_explorer.utils.data_utils import infer_dict_format
 
 logging.basicConfig(level=logging.DEBUG)
 integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")

@@ -55,10 +55,12 @@ which chooses a step size based on local error estimates. For more information, 
 **Step functions** are used to advance models in time during numerical integration. These methods usually differ in computational complexity and order of consistency; as a rule of thumb, a more accurate solution requires more computational work (as one might expect).
 
 ode-explorer provides a ``StepFunction`` Interface that is built exactly for this purpose. Adding your own step functions is very simple - it requires only one of the following:
-1. Subclass the ``StepFunction`` base class and override its ``forward`` method to supply the estimate.
+1. Subclass the ``StepFunction`` base class and override its ``forward`` method to calculate the estimate.
 2. Initialize one of the template classes in ``ode_explorer.templates`` with your chosen arguments.
 
-Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multistep methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.templates``. Try them out!
+Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multistep methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.templates``. 
+
+[BEWARE]: As of 21/11/20, templates have been untested, so use at your own discretion (or fall back to the builtin methods for the moment) :-)
 
 ## Callbacks and metrics
 
@@ -68,7 +70,7 @@ The main strong point / value of this library is that you can heavily customize 
 This concept may be familiar to users of ML libraries of scikit-learn and Tensorflow, which were the main inspiration behind this.
 You can do many things with callbacks, like logging, broadcasting your solver's intermittent results via websocket, check for NaN values - this is where your creativity comes in!
 
-The same applies to *metrics*, which are also callables that can be used to compute quantities of interest after each step.
+The same applies to *metrics* (with the corresponding ``Metric`` interface), which are also callables that can be used to compute quantities of interest after each step.
 Possible use cases include distance to a known ODE solution for sanity checking a step function, logging accepted and rejected steps in a step size control setting, or tracking of a first integral in a Hamiltonian system -
 again, the possibilities are really vast, so try it out!
 

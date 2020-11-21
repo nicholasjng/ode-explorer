@@ -9,6 +9,10 @@ After obtaining this repository, for example by ``git clone``ing it,
 navigate to the folder and run ``pip install`` on it:
 
 ```
+## making / activating a virtual environment in the first place
+## example here uses virtualenvwrapper
+
+mkvirtualenv odeexplorer
 git clone https://github.com/njunge94/ode-explorer.git
 cd ode-explorer
 pip install -r requirements.txt
@@ -17,7 +21,7 @@ pip install .
 
 It is very much advised to do this inside of a virtual environment to avoid bloating your 
 system's own Python installation. A popular option for working with virtual environments is 
-[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/).
+[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/), which is also used in the installation example above.
 
 
 # Introduction and first steps
@@ -77,6 +81,11 @@ Step size control is something like an art form - you can use the built-in ``Ste
 
 Check out the ``demo`` folder for some demonstrations of the package - most of them are quick and easy Jupyter Notebook examples. More will be gradually added - if you have a suggestion or you want to contribute your own, feel free to send me a message!
 
+To install Jupyter Notebook or Jupyter Lab, run the following inside of your created virtual environment:
+```
+pip install notebook    ## <---- for Jupyter Notebook
+pip install jupyterlab  ## <---- for Jupyter Lab
+```
 # Testing [WIP]
 
 Any numerical software should be tested extensively - not just for exception safety, but also for making sure it produces quality results. Testing is still very much a work in progress, but will be added gradually.

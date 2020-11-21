@@ -14,8 +14,8 @@ def import_func_from_source(source_path: Text, fn_name: Text) -> Callable:
 
     try:
         loader = importlib.machinery.SourceFileLoader(
-          fullname='user_module',
-          path=source_path,
+            fullname='user_module',
+            path=source_path,
         )
         user_module = types.ModuleType(loader.name)
         loader.exec_module(user_module)

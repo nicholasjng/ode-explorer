@@ -4,9 +4,11 @@ import datetime
 import copy
 import logging
 import numpy as np
+import uuid
 # import matplotlib.pyplot as plt
 
 from tqdm import trange
+from tabulate import tabulate
 from typing import Dict, Callable, Text, List, Union, Any
 
 from ode_explorer.templates import StepFunction
@@ -38,9 +40,8 @@ class Integrator:
         # pre-step function, will be called before each step if specified
         self._pre_step_hook = pre_step_hook
 
-        # empty lists holding the step and metric data
+        # empty list holding the different executed ODE integration runs
         self.runs = []
-        self.result_data, self.metric_data = [], []
 
         # step count, can be used to track integration runs
         self._step_count = 0
@@ -94,7 +95,7 @@ class Integrator:
                  end: float,
                  h: float,
                  num_steps: int,
-                 reset_step_counter: bool,
+                 reset: bool,
                  verbosity: int,
                  logfile: Text,
                  callbacks: List[Callback],
@@ -106,7 +107,9 @@ class Integrator:
                         [m.__name__ for m in metrics],
                         RunMetadataKeys.CALLBACK_NAMES:
                         [c.__name__ for c in callbacks],
-                        RunMetadataKeys.TIMESTAMP: datetime.datetime.now()}
+                        RunMetadataKeys.TIMESTAMP: datetime.datetime.now(),
+                        RunMetadataKeys.RUN_ID: uuid.uuid4(),
+                        RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT: step_func.output_format}
 
         # create file handler
         # TODO: Flush all previous handlers except the base to prevent clutter
@@ -118,11 +121,7 @@ class Integrator:
         # initialize dimension names
         model.initialize_dim_names(initial_state)
 
-        run_metadata.update({RunMetadataKeys.DIM_NAMES: model.dim_names,
-                             RunMetadataKeys.VARIABLE_NAMES: model.variable_names,
-                             RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT: step_func.output_format})
-
-        input_format = infer_dict_format(state_dict=initial_state, model=model)
+        run_metadata.update({RunMetadataKeys.MODEL_METADATA: model.get_metadata()})
 
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
@@ -136,18 +135,25 @@ class Integrator:
 
         run[RunKeys.RUN_CONFIG] = run_config
 
-        if reset_step_counter:
+        if reset:
             self._reset()
 
         # append the initial state
         run[RunKeys.RESULT_DATA].append(initial_state)
 
-        metric_dict = {}
+        initial_metrics = {}
 
         for metric in metrics:
             val = metric(0, initial_state, initial_state, model, locals())
-            metric_dict[metric.__name__] = val
-        run[RunKeys.METRICS].append(metric_dict)
+            initial_metrics[metric.__name__] = val
+
+        if sc:
+            # means dynamical integration, hence we log step size, accepts and rejects
+            initial_metrics.update({"step_size": h,
+                                    "n_accept": 0,
+                                    "n_reject": 0})
+
+        run[RunKeys.METRICS].append(initial_metrics)
 
     def integrate_const(self,
                         model: ODEModel,
@@ -156,14 +162,14 @@ class Integrator:
                         end: float = None,
                         h: float = None,
                         num_steps: int = None,
-                        reset_step_counter: bool = True,
+                        reset: bool = True,
                         verbosity: int = 0,
                         data_outfile: Text = None,
                         logfile: Text = None,
                         callbacks: List[Callback] = None,
                         metrics: List[Metric] = None):
 
-        # construct run object
+        # construct run object, dict for now
         run = {}
 
         # callbacks and metrics, to be executed/computed after the step
@@ -178,7 +184,7 @@ class Integrator:
                       end=end,
                       h=h,
                       num_steps=num_steps,
-                      reset_step_counter=reset_step_counter,
+                      reset=reset,
                       verbosity=verbosity,
                       logfile=logfile,
                       callbacks=callbacks,
@@ -226,7 +232,7 @@ class Integrator:
                               end: float,
                               initial_h: float = None,
                               max_steps: int = None,
-                              reset_step_counter: bool = True,
+                              reset: bool = True,
                               verbosity: int = logging.INFO,
                               data_outfile: Text = None,
                               logfile: Text = None,
@@ -248,7 +254,7 @@ class Integrator:
                       end=end,
                       h=initial_h,
                       num_steps=max_steps,
-                      reset_step_counter=reset_step_counter,
+                      reset=reset,
                       verbosity=verbosity,
                       logfile=logfile,
                       callbacks=callbacks,
@@ -256,15 +262,6 @@ class Integrator:
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
-
-        initial_metrics = {"iteration": 0,
-                           "step_size": initial_h,
-                           "n_accept": 0,
-                           "n_reject": 0}
-
-        # TODO: This can very well break
-        initial_metrics.update({m.__name__: 0.0 for m in metrics})
-        self.metric_data.append(initial_metrics)
 
         self.logger.info("Starting integration.")
 
@@ -288,34 +285,52 @@ class Integrator:
 
         self.logger.info("Finished integration.")
 
-        if self.result_data:
-            if data_outfile:
-                self.write_data_to_file(model=model, data_outfile=data_outfile)
+        if data_outfile:
+            self.write_data_to_file(model=model, data_outfile=data_outfile)
 
-                self.logger.info("Results written to file {}.".format(
-                    os.path.join(self.log_dir, data_outfile)))
+            self.logger.info("Results written to file {}.".format(
+                os.path.join(self.log_dir, data_outfile)))
+
+        self.runs.append(run)
 
         return self
 
+    def list_runs(self, tablefmt: Text = "github"):
+        metadata_list = [run[RunKeys.RUN_METADATA] for run in self.runs]
+
+        print(tabulate(metadata_list, tablefmt=tablefmt))
+
+    def get_run_by_id(self, run_id: Text):
+        try:
+            run = next(r for r in self.runs if r[RunKeys.RUN_METADATA][RunMetadataKeys.RUN_ID].startswith(run_id))
+        except StopIteration:
+            raise ValueError(f"Error: Run with ID {run_id} not found.")
+
+        return run
+
     # TODO: Save some type of run metadata to avoid having to pass
     #  the whole model object
-    def return_result_data(self, model: ODEModel) -> pd.DataFrame:
-        first_step = self.result_data[1]
+    def return_result_data(self, run_id: Text) -> pd.DataFrame:
+        run = self.get_run_by_id(run_id=run_id)
 
-        result_format = infer_dict_format(first_step, model=model)
+        # TODO: This is ugly
+        output_format = run[RunKeys.RUN_METADATA][RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT]
+        model_metadata = run[RunKeys.RUN_METADATA][RunMetadataKeys.MODEL_METADATA]
 
-        if result_format != DataFormatKeys.ZIPPED:
-            for i, res in enumerate(self.result_data):
-                self.result_data[i] = convert_to_zipped(res, model)
+        run_result = copy.deepcopy(run[RunKeys.RESULT_DATA])
+        if output_format != DataFormatKeys.ZIPPED:
+            for i, res in enumerate(run_result):
+                run_result[i] = convert_to_zipped(res, model_metadata=model_metadata)
 
-        return pd.DataFrame(self.result_data)
+        return pd.DataFrame(run_result)
 
-    def return_metrics(self, model: ODEModel) -> pd.DataFrame:
+    def return_metrics(self, run_id: Text) -> pd.DataFrame:
+        run = self.get_run_by_id(run_id=run_id)
 
-        return pd.DataFrame(self.metric_data)
+        return pd.DataFrame(run[RunKeys.METRICS])
 
-    def visualize(self, model: ODEModel, ax=None):
+    def visualize(self, run_id: Text, ax=None):
 
-        df = self.return_result_data(model=model)
+        df = self.return_result_data(run_id=run_id)
 
         df.plot(ax=ax)

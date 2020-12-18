@@ -1,5 +1,11 @@
-*__pycache__*
+# macOS specifics
 *.DS_Store
+
+# Python / Jupyter Notebook
+*__pycache__*
+*.ipynb_checkpoints*
+
+# setup.py
 *.idea/
 *.tar.gz
 *.zip
@@ -7,10 +13,10 @@
 *.yaml
 *.egg-info
 *eggs
-*.ipynb_checkpoints*
+
+# virtual environment
 venv
+
+# default result and log directories
 **/results
 **/logs
-
-notebooks/.ipynb_checkpoints
-notebooks/test_data

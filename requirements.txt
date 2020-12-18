@@ -1,9 +1,6 @@
-absl-py==0.11.0
-numpy==1.19.4
-pandas==1.1.4
-tqdm==4.52.0
-scipy==1.5.4
-tabulate==0.8.7
-matplotlib==3.3.3
-#jax
-#jaxlib
+absl-py
+numpy
+pandas
+tqdm
+scipy
+tabulate

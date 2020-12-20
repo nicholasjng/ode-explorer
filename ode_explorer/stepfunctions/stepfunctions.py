@@ -4,8 +4,8 @@ import numpy as np
 from scipy.optimize import root, root_scalar
 
 from ode_explorer.constants import DataFormatKeys
-from ode_explorer.model import ODEModel
-from ode_explorer.templates import StepFunction
+from ode_explorer.models.model import ODEModel
+from ode_explorer.stepfunctions.templates import StepFunction
 from ode_explorer.utils.helpers import is_scalar
 
 # import jax.numpy as jnp

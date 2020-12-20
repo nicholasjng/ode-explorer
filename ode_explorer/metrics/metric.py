@@ -2,7 +2,7 @@ from typing import Dict, Text, Any, Callable, Union
 
 import numpy as np
 
-from ode_explorer.model import ODEModel
+from ode_explorer.models.model import ODEModel
 
 
 class Metric:

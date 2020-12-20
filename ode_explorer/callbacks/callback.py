@@ -3,9 +3,9 @@ from typing import Dict, Text, Any, Union
 
 import numpy as np
 
-from ode_explorer.model import ODEModel
+from ode_explorer.models.model import ODEModel
 
-callback_logger = logging.getLogger("ode_explorer.callbacks.Callback")
+callback_logger = logging.getLogger(__name__)
 
 
 class Callback:

@@ -5,7 +5,7 @@ import numpy as np
 from scipy.optimize import root, root_scalar
 
 from ode_explorer.constants import DataFormatKeys
-from ode_explorer.model import ODEModel
+from ode_explorer.models.model import ODEModel
 from ode_explorer.utils.helpers import is_scalar
 
 templates_logger = logging.getLogger("ode_explorer.templates")

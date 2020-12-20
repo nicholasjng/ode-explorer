@@ -3,12 +3,12 @@ from typing import Any, List, Dict, Union, Text
 
 import numpy as np
 
-from ode_explorer.callbacks import Callback
+from ode_explorer.callbacks.callback import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys, DynamicVariables
-from ode_explorer.metrics import Metric
-from ode_explorer.model import ODEModel
-from ode_explorer.stepsizecontroller import StepsizeController
-from ode_explorer.templates import StepFunction
+from ode_explorer.metrics.metric import Metric
+from ode_explorer.models.model import ODEModel
+from ode_explorer.stepsize_control.stepsizecontroller import StepsizeController
+from ode_explorer.stepfunctions.templates import StepFunction
 
 __all__ = ["constant_h_loop", "dynamic_h_loop"]
 

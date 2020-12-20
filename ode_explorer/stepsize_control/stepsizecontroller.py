@@ -2,7 +2,7 @@ from typing import Dict, Text, Any, Union, Tuple
 
 import numpy as np
 
-from ode_explorer.model import ODEModel
+from ode_explorer.models.model import ODEModel
 
 
 class StepsizeController:

@@ -11,19 +11,19 @@ import pandas as pd
 from tabulate import tabulate
 from tqdm import trange
 
-from ode_explorer.callbacks import Callback
+from ode_explorer.callbacks.callback import Callback
 from ode_explorer.constants import DataFormatKeys, RunKeys, RunMetadataKeys, RunConfigKeys
-from ode_explorer.integrator_loops import constant_h_loop, dynamic_h_loop
-from ode_explorer.metrics import Metric
-from ode_explorer.model import ODEModel
-from ode_explorer.stepsizecontroller import StepsizeController
-from ode_explorer.templates import StepFunction
+from ode_explorer.integrators.integrator_loops import constant_h_loop, dynamic_h_loop
+from ode_explorer.metrics.metric import Metric
+from ode_explorer.models.model import ODEModel
+from ode_explorer.stepsize_control.stepsizecontroller import StepsizeController
+from ode_explorer.stepfunctions.templates import StepFunction
 from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
 
 # import matplotlib.pyplot as plt
 
 
-integrator_logger = logging.getLogger("ode_explorer.integrator.Integrator")
+integrator_logger = logging.getLogger(__name__)
 integrator_logger.setLevel(logging.INFO)
 
 

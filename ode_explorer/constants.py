@@ -36,4 +36,8 @@ class RunMetadataKeys:
 class ModelMetadataKeys:
     DIM_NAMES = "dim_names"
     VARIABLE_NAMES = "variable_names"
-    INDEP_NAME = "indep_name"
+
+
+class StandardVariables:
+    standard_rhs = ["t", "y"]
+    hamiltonian_rhs = ["t", "x", "p"]

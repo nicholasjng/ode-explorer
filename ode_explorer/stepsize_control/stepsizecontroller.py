@@ -1,22 +1,23 @@
-from typing import Dict, Text, Any, Union, Tuple
+from typing import Dict, Text, Any, Tuple
 
 import numpy as np
 
 from ode_explorer.models.model import ODEModel
+from ode_explorer.types import ModelState
 
 
-class StepsizeController:
+class StepSizeController:
     def __call__(self,
                  i: int,
                  h: float,
-                 state: Dict[Text, Union[np.ndarray, float]],
-                 updated_state: Dict[Text, Union[np.ndarray, float]],
+                 state: ModelState,
+                 updated_state: ModelState,
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> Tuple[bool, float]:
+                 local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
         raise NotImplementedError
 
 
-class DOPRI45Controller(StepsizeController):
+class DOPRI45Controller(StepSizeController):
     def __init__(self,
                  atol: float = 0.001,
                  rtol: float = 0.001,
@@ -35,20 +36,17 @@ class DOPRI45Controller(StepsizeController):
     def __call__(self,
                  i: int,
                  h: float,
-                 state: Dict[Text, Union[np.ndarray, float]],
-                 updated_state: Dict[Text, Union[np.ndarray, float]],
+                 state: ModelState,
+                 updated_state: ModelState,
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> Tuple[bool, float]:
+                 local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
         order4, order5 = updated_state
 
-        # TODO: This only works for y' = f(t,y) type situations
-        var_name = model.variable_names[0]
+        y_prev = state[-1]
 
-        y_prev = state[var_name]
-        y_4, y_5 = order4[var_name], order5[var_name]
+        y_4, y_5 = order4[-1], order5[-1]
 
-        err_tol = self.atol + self.rtol * np.maximum(np.abs(y_prev),
-                                                     np.abs(y_5))
+        err_tol = self.atol + self.rtol * np.maximum(np.abs(y_prev), np.abs(y_5))
 
         err_ratio = np.linalg.norm(y_4 / err_tol)
 
@@ -56,7 +54,6 @@ class DOPRI45Controller(StepsizeController):
 
         error_est = (1 / err_ratio) ** (1 / self.order)
 
-        h_new = h * min(self.fac_max,
-                        max(self.fac_min, self.safety_factor * error_est))
+        h_new = h * min(self.fac_max, max(self.fac_min, self.safety_factor * error_est))
 
         return accept, h_new

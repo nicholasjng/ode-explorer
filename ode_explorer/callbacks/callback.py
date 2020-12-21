@@ -1,9 +1,10 @@
 import logging
-from typing import Dict, Text, Any, Union
+from typing import Dict, Text, Any
 
 import numpy as np
 
 from ode_explorer.models.model import ODEModel
+from ode_explorer.types import ModelState
 
 callback_logger = logging.getLogger(__name__)
 
@@ -14,10 +15,10 @@ class Callback:
 
     def __call__(self,
                  i: int,
-                 state: Dict[Text, Union[np.ndarray, float]],
-                 updated_state: Dict[Text, Union[np.ndarray, float]],
+                 state: ModelState,
+                 updated_state: ModelState,
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> None:
+                 local_vars: Dict[Text, Any]) -> None:
         raise NotImplementedError
 
 
@@ -40,15 +41,14 @@ class NaNChecker(Callback):
 
     def __call__(self,
                  i: int,
-                 state: Dict[Text, Union[np.ndarray, float]],
-                 updated_state: Dict[Text, Union[np.ndarray, float]],
+                 state: ModelState,
+                 updated_state: ModelState,
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> None:
+                 local_vars: Dict[Text, Any]) -> None:
 
         # only check new state as old is assumed to be sensible,
         # i.e. not having nans
-        keys = list(updated_state.keys())
-        y_new = np.array(updated_state.values())
+        y_new = updated_state[-1]
 
         na_mask = np.isnan(y_new)
         if np.any(na_mask):
@@ -61,20 +61,18 @@ class NaNChecker(Callback):
                                  "\"{errors}\". If you want to fill NaN values"
                                  " with a fixed value instead, consider "
                                  "supplying the \"replacement\" argument at "
-                                 "callback construction.".format(
-                    errors=self.errors))
+                                 "callback construction.".format(errors=self.errors))
             elif self.errors == "coerce":
                 callback_logger.warning("Encountered at least one NaN "
                                         "value in the state after the ODE "
                                         "step. Filling the NaN values with "
                                         "preset replacement value "
-                                        "{replacement}.".format(
-                    replacement=self.replacement))
+                                        "{replacement}.".format(replacement=self.replacement))
 
                 # get na_keys by na_mask
-                na_keys = [key for i, key in enumerate(keys) if na_mask[i]]
-                for na_key in na_keys:
-                    updated_state[na_key] = self.replacement
+                y_new[na_mask] = self.replacement
+                corrected = (*updated_state[:-1], y_new)
+                print(corrected)
 
             else:  # ignore errors
                 callback_logger.warning("Encountered at least one NaN "

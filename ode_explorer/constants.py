@@ -1,9 +1,3 @@
-# dict formats, used for writing and displaying ODE integration data
-class DataFormatKeys:
-    ZIPPED = "zipped"
-    VARIABLES = "variables"
-
-
 # dynamic (step size integration) variables)
 class DynamicVariables:
     MAX_STEPS = 10000
@@ -29,7 +23,6 @@ class RunConfigKeys:
 
 class RunMetadataKeys:
     TIMESTAMP = "timestamp"
-    STEPFUNC_OUTPUT_FORMAT = "stepfunc_output_format"
     RUN_ID = "run_id"
 
 

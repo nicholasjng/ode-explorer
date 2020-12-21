@@ -6,7 +6,7 @@ import numpy as np
 from ode_explorer.models.model import ODEModel
 from ode_explorer.types import ModelState
 
-callback_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Callback:
@@ -26,18 +26,18 @@ class NaNChecker(Callback):
     def __init__(self,
                  fill_nans: bool = False,
                  replacement: float = 0.0,
-                 errors: Text = "raise",
+                 nan_handling_mode: Text = "raise",
                  name: Text = None):
 
         super(NaNChecker, self).__init__(name=name)
 
         self.fill_nans = fill_nans
         self.replacement = replacement
-        error_options = ["raise", "coerce", "ignore"]
-        if errors not in error_options:
-            raise ValueError("Unrecognized error handling mode supplied. "
-                             f"Options are: {error_options}")
-        self.errors = errors
+        nan_handling_options = ["raise", "coerce", "ignore"]
+        if nan_handling_mode not in nan_handling_options:
+            raise ValueError("Unrecognized NaN handling mode supplied. "
+                             f"Options are: {nan_handling_options}")
+        self.nan_handling_mode = nan_handling_mode
 
     def __call__(self,
                  i: int,
@@ -52,22 +52,23 @@ class NaNChecker(Callback):
 
         na_mask = np.isnan(y_new)
         if np.any(na_mask):
-            if self.errors == "raise":
-                callback_logger.error("Error: Encountered at least one NaN "
-                                      "value in the state after the ODE "
-                                      "step.")
+            if self.nan_handling_mode == "raise":
+                logger.error("Error: Encountered at least one NaN "
+                             "value in the state after the ODE step.")
+
                 raise ValueError("Error: There were NaN values in the ODE data"
-                                 " and the error handling mode was set to "
-                                 "\"{errors}\". If you want to fill NaN values"
-                                 " with a fixed value instead, consider "
-                                 "supplying the \"replacement\" argument at "
-                                 "callback construction.".format(errors=self.errors))
-            elif self.errors == "coerce":
-                callback_logger.warning("Encountered at least one NaN "
-                                        "value in the state after the ODE "
-                                        "step. Filling the NaN values with "
-                                        "preset replacement value "
-                                        "{replacement}.".format(replacement=self.replacement))
+                                 " and the NaN handling mode was set to "
+                                 "\"{mode}\". If you want to fill NaN values"
+                                 " with a fixed value instead, consider setting "
+                                 "errors=\"coerce\" and supplying the \"replacement\" "
+                                 "argument at callback construction.".format(mode=self.nan_handling_mode))
+
+            elif self.nan_handling_mode == "coerce":
+                logger.warning("Encountered at least one NaN "
+                               "value in the state after the ODE "
+                               "step. Filling the NaN values with "
+                               "preset replacement value "
+                               "{replacement}.".format(replacement=self.replacement))
 
                 # get na_keys by na_mask
                 y_new[na_mask] = self.replacement
@@ -75,10 +76,10 @@ class NaNChecker(Callback):
                 print(corrected)
 
             else:  # ignore errors
-                callback_logger.warning("Encountered at least one NaN "
-                                        "value in the state after the ODE "
-                                        "step. Since error handling mode "
-                                        "was set to {errors}, NaN values "
-                                        "will be ignored. This will most "
-                                        "likely have severe effects on your "
-                                        "computation.".format(errors=self.errors))
+                logger.warning("Encountered at least one NaN "
+                               "value in the state after the ODE "
+                               "step. Since error handling mode "
+                               "was set to {mode}, NaN values "
+                               "will be ignored. This will most "
+                               "likely have severe effects on your "
+                               "computation.".format(mode=self.nan_handling_mode))

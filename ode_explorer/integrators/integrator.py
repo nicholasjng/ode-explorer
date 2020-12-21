@@ -20,8 +20,8 @@ from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
 from ode_explorer.types import ModelState
 from ode_explorer.utils.data_utils import convert_to_dict
 
-integrator_logger = logging.getLogger(__name__)
-integrator_logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class Integrator:
@@ -48,13 +48,11 @@ class Integrator:
 
         self.logfile_name = logfile_name or "logs.txt"
 
-        self.logger = integrator_logger
-
         self._set_up_logger(log_dir=self.log_dir)
 
         self.output_dir = output_dir or os.path.join(os.getcwd(), "results")
 
-        self.logger.info("Created an Integrator instance.")
+        logger.info("Created an Integrator instance.")
 
     def _reset(self):
         # Hard reset all data and step counts
@@ -66,7 +64,7 @@ class Integrator:
             os.mkdir(log_dir)
 
         # flush handlers on construction since it is a global object
-        self.logger.handlers = []
+        logger.handlers = []
 
         ch = logging.StreamHandler()
         ch.setLevel(logging.INFO)
@@ -74,9 +72,9 @@ class Integrator:
         fh = logging.FileHandler(os.path.join(self.log_dir, self.logfile_name))
         fh.setLevel(logging.INFO)
         fh.setFormatter(absl.logging.PythonFormatter())
-        self.logger.addHandler(ch)
-        self.logger.addHandler(fh)
-        self.logger.info('Creating an Integrator instance.')
+        logger.addHandler(ch)
+        logger.addHandler(fh)
+        logger.info('Creating an Integrator instance.')
 
     def _startup(self,
                  run: Dict[Text, Any],
@@ -100,13 +98,13 @@ class Integrator:
         # TODO: Flush all previous handlers except the base to prevent clutter
         if logfile:
             fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
-            self.logger.addHandler(fh)
+            logger.addHandler(fh)
             fh.setLevel(verbosity)
 
         # initialize dimension names
         model.initialize_dim_names(initial_state)
 
-        for handler in self.logger.handlers:
+        for handler in logger.handlers:
             handler.setLevel(verbosity)
 
         start = initial_state[0]
@@ -181,7 +179,7 @@ class Integrator:
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
 
-        self.logger.info("Starting integration.")
+        logger.info("Starting integration.")
 
         if progress_bar:
             # register to tqdm
@@ -198,16 +196,16 @@ class Integrator:
                         state=state,
                         callbacks=callbacks,
                         metrics=metrics,
-                        logger=self.logger)
+                        logger=logger)
 
-        self.logger.info("Finished integration.")
+        logger.info("Finished integration.")
 
         if data_outfile:
             self.write_data_to_file(run=run,
                                     model_metadata=model.get_metadata(),
                                     data_outfile=data_outfile)
 
-            self.logger.info("Results written to file {}.".format(
+            logger.info("Results written to file {}.".format(
                 os.path.join(self.output_dir, data_outfile)))
 
         self.runs.append(run)
@@ -254,7 +252,7 @@ class Integrator:
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
 
-        self.logger.info("Starting integration.")
+        logger.info("Starting integration.")
 
         # treat initial state as state 0
         if progress_bar:
@@ -272,16 +270,16 @@ class Integrator:
                        callbacks=callbacks,
                        metrics=metrics,
                        sc=sc,
-                       logger=self.logger)
+                       logger=logger)
 
-        self.logger.info("Finished integration.")
+        logger.info("Finished integration.")
 
         if data_outfile:
             self.write_data_to_file(run=run,
                                     model_metadata=model.get_metadata(),
                                     data_outfile=data_outfile)
 
-            self.logger.info("Results written to file {}.".format(
+            logger.info("Results written to file {}.".format(
                 os.path.join(self.log_dir, data_outfile)))
 
         self.runs.append(run)

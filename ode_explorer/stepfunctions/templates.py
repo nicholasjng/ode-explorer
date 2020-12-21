@@ -8,7 +8,7 @@ from ode_explorer.models.model import ODEModel
 from ode_explorer.types import StateVariable, ModelState
 from ode_explorer.utils.helpers import is_scalar
 
-templates_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class StepFunction:

@@ -1,16 +1,15 @@
-from typing import Callable, Dict, Any, Text, List, Union
-
-import numpy as np
+from typing import Dict, Any, Text, List
 
 from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.models import messages
+from ode_explorer.models.base_model import BaseModel
+from ode_explorer.types import ModelState, StateVariable
+from ode_explorer.types import ODEFunction
 from ode_explorer.utils.helpers import is_scalar, infer_variable_names
 from ode_explorer.utils.import_utils import import_func_from_module
 
-ODEFunction = Callable[[float, Union[float, np.ndarray], Any], Union[float, np.ndarray]]
 
-
-class ODEModel:
+class ODEModel(BaseModel):
     """
     Base class for all ODE models.
     """
@@ -46,10 +45,11 @@ class ODEModel:
     def make_initial_state(self, initial_time: float, initial_vec: Any):
         return dict(zip(self.variable_names, [initial_time, initial_vec]))
 
-    def initialize_dim_names(self, initial_state: Dict[Text, Any]):
+    def initialize_dim_names(self, initial_state: ModelState):
 
         var_dims = []
-        for k, v in initial_state.items():
+
+        for k, v in zip(self.variable_names, initial_state):
             dim = 1 if is_scalar(v) else len(v)
 
             var_dims.append((k, dim))
@@ -75,6 +75,6 @@ class ODEModel:
         return {ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
                 ModelMetadataKeys.DIM_NAMES: self.dim_names}
 
-    def __call__(self, t: float, y: np.ndarray, **kwargs) -> np.ndarray:
+    def __call__(self, t: StateVariable, y: StateVariable) -> StateVariable:
 
         return self.ode_fn(t, y, **self.fn_args)

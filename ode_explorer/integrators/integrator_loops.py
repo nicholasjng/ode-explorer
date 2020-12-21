@@ -1,14 +1,13 @@
 import logging
-from typing import Any, List, Dict, Union, Text
-
-import numpy as np
+from typing import Any, List, Dict, Text
 
 from ode_explorer.callbacks.callback import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys, DynamicVariables
 from ode_explorer.metrics.metric import Metric
 from ode_explorer.models.model import ODEModel
-from ode_explorer.stepsize_control.stepsizecontroller import StepsizeController
 from ode_explorer.stepfunctions.templates import StepFunction
+from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
+from ode_explorer.types import ModelState
 
 __all__ = ["constant_h_loop", "dynamic_h_loop"]
 
@@ -18,10 +17,10 @@ def constant_h_loop(run: Dict[Text, Any],
                     step_func: StepFunction,
                     model: ODEModel,
                     h: float,
-                    state: Dict[Text, Union[float, np.ndarray]],
+                    state: ModelState,
                     callbacks: List[Callback],
                     metrics: List[Metric],
-                    sc: StepsizeController = None,
+                    sc: StepSizeController = None,
                     logger: logging.Logger = None):
     run_config = run[RunKeys.RUN_CONFIG]
 
@@ -50,7 +49,7 @@ def constant_h_loop(run: Dict[Text, Any],
 
         # update delayed after callback execution so that callbacks have
         # access to both the previous and the current state
-        state.update(updated_state)
+        state = updated_state
 
 
 def dynamic_h_loop(run: Dict[Text, Any],
@@ -58,10 +57,10 @@ def dynamic_h_loop(run: Dict[Text, Any],
                    step_func: StepFunction,
                    model: ODEModel,
                    h: float,
-                   state: Dict[Text, Union[float, np.ndarray]],
+                   state: ModelState,
                    callbacks: List[Callback],
                    metrics: List[Metric],
-                   sc: StepsizeController = None,
+                   sc: StepSizeController = None,
                    logger: logging.Logger = None):
     run_config = run[RunKeys.RUN_CONFIG]
 
@@ -79,9 +78,9 @@ def dynamic_h_loop(run: Dict[Text, Any],
 
         # e.g. DOPRI45 returns a tuple of estimates, as do embedded RKs
         if isinstance(updated_state, (tuple, list)):
-            current = updated_state[0][model.indep_name]
+            current = updated_state[0][0]
         else:
-            current = updated_state[model.indep_name]
+            current = updated_state[0]
 
         if current + h > end:
             h = end - current
@@ -110,7 +109,7 @@ def dynamic_h_loop(run: Dict[Text, Any],
 
         # update delayed after callback execution so that callbacks have
         # access to both the previous and the current state
-        state.update(updated_state)
+        state = updated_state
 
         # self._step_count += 1
 

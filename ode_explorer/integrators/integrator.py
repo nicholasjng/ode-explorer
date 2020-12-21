@@ -6,22 +6,19 @@ import uuid
 from typing import Dict, Callable, Text, List, Union, Any
 
 import absl.logging
-import numpy as np
 import pandas as pd
 from tabulate import tabulate
 from tqdm import trange
 
 from ode_explorer.callbacks.callback import Callback
-from ode_explorer.constants import DataFormatKeys, RunKeys, RunMetadataKeys, RunConfigKeys
+from ode_explorer.constants import RunKeys, RunMetadataKeys, RunConfigKeys
 from ode_explorer.integrators.integrator_loops import constant_h_loop, dynamic_h_loop
 from ode_explorer.metrics.metric import Metric
 from ode_explorer.models.model import ODEModel
-from ode_explorer.stepsize_control.stepsizecontroller import StepsizeController
 from ode_explorer.stepfunctions.templates import StepFunction
-from ode_explorer.utils.data_utils import write_to_file, convert_to_zipped
-
-# import matplotlib.pyplot as plt
-
+from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
+from ode_explorer.types import ModelState
+from ode_explorer.utils.data_utils import convert_to_dict
 
 integrator_logger = logging.getLogger(__name__)
 integrator_logger.setLevel(logging.INFO)
@@ -36,8 +33,7 @@ class Integrator:
                  pre_step_hook: Callable = None,
                  log_dir: Text = None,
                  logfile_name: Text = None,
-                 data_output_dir: Text = None,
-                 progress_bar: bool = True):
+                 output_dir: Text = None):
 
         # pre-step function, will be called before each step if specified
         self._pre_step_hook = pre_step_hook
@@ -56,9 +52,7 @@ class Integrator:
 
         self._set_up_logger(log_dir=self.log_dir)
 
-        self.data_dir = data_output_dir or os.path.join(os.getcwd(), "results")
-
-        self.progress_bar = progress_bar
+        self.output_dir = output_dir or os.path.join(os.getcwd(), "results")
 
         self.logger.info("Created an Integrator instance.")
 
@@ -66,12 +60,6 @@ class Integrator:
         # Hard reset all data and step counts
         self._step_count = 0
         self.runs = []
-
-    def write_data_to_file(self, model, data_outfile: Text = None):
-        data_outfile = data_outfile or "run_" + \
-                       datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
-        write_to_file(self.result_data, model, self.data_dir, data_outfile)
 
     def _set_up_logger(self, log_dir):
         if not os.path.exists(log_dir):
@@ -94,8 +82,8 @@ class Integrator:
                  run: Dict[Text, Any],
                  model: ODEModel,
                  step_func: StepFunction,
-                 sc: StepsizeController,
-                 initial_state: Dict[Text, Union[np.ndarray, float]],
+                 sc: StepSizeController,
+                 initial_state: ModelState,
                  end: float,
                  h: float,
                  num_steps: int,
@@ -106,8 +94,7 @@ class Integrator:
                  metrics: List[Metric]):
 
         run_metadata = {RunMetadataKeys.TIMESTAMP: datetime.datetime.now(),
-                        RunMetadataKeys.RUN_ID: uuid.uuid4(),
-                        RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT: step_func.output_format}
+                        RunMetadataKeys.RUN_ID: uuid.uuid4()}
 
         # create file handler
         # TODO: Flush all previous handlers except the base to prevent clutter
@@ -122,7 +109,7 @@ class Integrator:
         for handler in self.logger.handlers:
             handler.setLevel(verbosity)
 
-        start = initial_state[model.indep_name]
+        start = initial_state[0]
 
         run_config = {RunConfigKeys.START: start,
                       RunConfigKeys.END: end,
@@ -158,7 +145,7 @@ class Integrator:
     def integrate_const(self,
                         model: ODEModel,
                         step_func: StepFunction,
-                        initial_state: Dict[Text, Union[np.ndarray, float]],
+                        initial_state: ModelState,
                         end: float = None,
                         h: float = None,
                         num_steps: int = None,
@@ -167,7 +154,8 @@ class Integrator:
                         data_outfile: Text = None,
                         logfile: Text = None,
                         callbacks: List[Callback] = None,
-                        metrics: List[Metric] = None):
+                        metrics: List[Metric] = None,
+                        progress_bar: bool = False):
 
         # construct run object, dict for now
         run = {}
@@ -195,7 +183,7 @@ class Integrator:
 
         self.logger.info("Starting integration.")
 
-        if self.progress_bar:
+        if progress_bar:
             # register to tqdm
             iterator = trange(1, num_steps + 1)
         else:
@@ -215,10 +203,12 @@ class Integrator:
         self.logger.info("Finished integration.")
 
         if data_outfile:
-            self.write_data_to_file(model=model, data_outfile=data_outfile)
+            self.write_data_to_file(run=run,
+                                    model_metadata=model.get_metadata(),
+                                    data_outfile=data_outfile)
 
             self.logger.info("Results written to file {}.".format(
-                os.path.join(self.log_dir, data_outfile)))
+                os.path.join(self.output_dir, data_outfile)))
 
         self.runs.append(run)
 
@@ -227,8 +217,8 @@ class Integrator:
     def integrate_dynamically(self,
                               model: ODEModel,
                               step_func: StepFunction,
-                              initial_state: Dict[Text, Union[np.ndarray, float]],
-                              sc: Union[StepsizeController, Callable],
+                              initial_state: ModelState,
+                              sc: Union[StepSizeController, Callable],
                               end: float,
                               initial_h: float = None,
                               max_steps: int = None,
@@ -237,7 +227,8 @@ class Integrator:
                               data_outfile: Text = None,
                               logfile: Text = None,
                               callbacks: List[Callback] = None,
-                              metrics: List[Metric] = None):
+                              metrics: List[Metric] = None,
+                              progress_bar: bool = False):
 
         # construct run object
         run = {}
@@ -266,7 +257,7 @@ class Integrator:
         self.logger.info("Starting integration.")
 
         # treat initial state as state 0
-        if self.progress_bar:
+        if progress_bar:
             # register to tqdm
             iterator = trange(1, max_steps + 1)
         else:
@@ -286,7 +277,9 @@ class Integrator:
         self.logger.info("Finished integration.")
 
         if data_outfile:
-            self.write_data_to_file(model=model, data_outfile=data_outfile)
+            self.write_data_to_file(run=run,
+                                    model_metadata=model.get_metadata(),
+                                    data_outfile=data_outfile)
 
             self.logger.info("Results written to file {}.".format(
                 os.path.join(self.log_dir, data_outfile)))
@@ -319,14 +312,12 @@ class Integrator:
     def return_result_data(self, run_id: Text) -> pd.DataFrame:
         run = self.get_run_by_id(run_id=run_id)
 
-        # TODO: This is ugly
-        output_format = run[RunKeys.RUN_METADATA][RunMetadataKeys.STEPFUNC_OUTPUT_FORMAT]
         model_metadata = run[RunKeys.MODEL_METADATA]
 
         run_result = copy.deepcopy(run[RunKeys.RESULT_DATA])
-        if output_format != DataFormatKeys.ZIPPED:
-            for i, res in enumerate(run_result):
-                run_result[i] = convert_to_zipped(res, model_metadata=model_metadata)
+
+        for i, res in enumerate(run_result):
+            run_result[i] = convert_to_dict(res, model_metadata=model_metadata)
 
         return pd.DataFrame(run_result)
 
@@ -334,6 +325,21 @@ class Integrator:
         run = self.get_run_by_id(run_id=run_id)
 
         return pd.DataFrame(run[RunKeys.METRICS])
+
+    def write_data_to_file(self, run, model_metadata, data_outfile: Text = None, **kwargs):
+        data_outfile = data_outfile or "run_" + \
+                       datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+
+        run_result = copy.deepcopy(run[RunKeys.RESULT_DATA])
+
+        for i, res in enumerate(run_result):
+            run_result[i] = convert_to_dict(res, model_metadata=model_metadata)
+
+        run_data = pd.DataFrame(run_result)
+
+        out_file = os.path.join(self.output_dir, data_outfile)
+
+        run_data.to_csv(out_file, **kwargs)
 
     def visualize(self, run_id: Text, ax=None):
 

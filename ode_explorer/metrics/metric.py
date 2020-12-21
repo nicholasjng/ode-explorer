@@ -3,6 +3,7 @@ from typing import Dict, Text, Any, Callable, Union
 import numpy as np
 
 from ode_explorer.models.model import ODEModel
+from ode_explorer.types import ModelState
 
 
 class Metric:
@@ -12,10 +13,10 @@ class Metric:
 
     def __call__(self,
                  i: int,
-                 state: Dict[Text, Union[np.ndarray, float]],
-                 updated_state: Dict[Text, Union[np.ndarray, float]],
+                 state: ModelState,
+                 updated_state: ModelState,
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> Any:
+                 local_vars: Dict[Text, Any]) -> Any:
         raise NotImplementedError
 
 
@@ -26,7 +27,9 @@ class DistanceToSolution(Metric):
     expected.
     """
 
-    def __init__(self, solution: Callable, norm: Union[Text, int] = None,
+    def __init__(self,
+                 solution: Callable,
+                 norm: Union[Text, int] = None,
                  name: Text = None):
         super(DistanceToSolution, self).__init__(name=name)
 
@@ -35,12 +38,11 @@ class DistanceToSolution(Metric):
 
     def __call__(self,
                  i: int,
-                 state: Dict[Text, Union[np.ndarray, float]],
-                 updated_state: Dict[Text, Union[np.ndarray, float]],
+                 state: ModelState,
+                 updated_state: ModelState,
                  model: ODEModel,
-                 locals: Dict[Text, Any]) -> Any:
-        t = updated_state[model.indep_name]
-        y = np.array([updated_state[key] for key in model.dim_names])
+                 local_vars: Dict[Text, Any]) -> Any:
+        t, y = updated_state
 
         y_pred = self.solution(t)
 

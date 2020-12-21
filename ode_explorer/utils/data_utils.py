@@ -1,82 +1,42 @@
 import os
-from typing import List, Dict, Text, Any, Union
+from typing import List, Dict, Text, Any
 
-import numpy as np
 import pandas as pd
 
-from ode_explorer.constants import DataFormatKeys, ModelMetadataKeys
+from ode_explorer.constants import ModelMetadataKeys
+from ode_explorer.types import ModelState
 from ode_explorer.utils.helpers import is_scalar
 
-__all__ = ["convert_to_zipped", "convert_from_zipped", "convert_state_dict",
-           "infer_dict_format", "write_to_file", "make_log_dir"]
+__all__ = ["convert_to_dict", "write_to_file", "make_log_dir"]
 
 
 def make_log_dir():
     pass
 
 
-def convert_to_zipped(state_dict: Dict[Text, Any], model_metadata: Dict[Text, Any]):
-    indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
+def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any]):
+    output_dict = dict()
+
     variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
     dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
 
-    t = state_dict[indep_name]
-    y = state_dict[variable_names[0]]
+    idx = 0
+    for i, name in enumerate(variable_names):
+        v = state[i]
 
-    # small check for a default value in the scalar case (n = 1)
-    if is_scalar(y):
-        return {indep_name: t, dim_names[0]: y}
-    return {indep_name: t, **dict(zip(dim_names, y))}
+        if is_scalar(v):
+            k = dim_names[idx]
+            output_dict.update({k: v})
+            idx += 1
+        else:
+            k = dim_names[idx:idx + len(v)]
+            output_dict.update(dict(zip(k, v)))
+            idx += len(v)
 
-
-def convert_from_zipped(state_dict: Dict[Text, Any], model_metadata: Dict[Text, Any]):
-    indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
-    variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
-    dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
-
-    t = state_dict[indep_name]
-    y = np.array([state_dict[key] for key in dim_names])
-
-    if len(dim_names) == 1:
-        return {indep_name: t, variable_names[0]: y[0]}
-    return {indep_name: t, variable_names[0]: y}
+    return output_dict
 
 
-def convert_state_dict(state_dict: Dict[Text, Any],
-                       model_metadata: Dict[Text, Any],
-                       input_format: Text = None,
-                       output_format: Text = DataFormatKeys.ZIPPED):
-    # infer dict mode by presence of variable name
-    if not input_format:
-        input_format = infer_dict_format(state_dict=state_dict, model_metadata=model_metadata)
-
-    if input_format == output_format:
-        return state_dict
-
-    if output_format == DataFormatKeys.ZIPPED:
-        return convert_to_zipped(state_dict=state_dict, model_metadata=model_metadata)
-    else:
-        return convert_from_zipped(state_dict=state_dict, model_metadata=model_metadata)
-
-
-def infer_dict_format(state_dict: Dict[Text, Union[float, np.ndarray]],
-                      model_metadata: Dict[Text, Any]):
-    indep_name = model_metadata[ModelMetadataKeys.INDEP_NAME]
-    variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
-    dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
-
-    if all(var in state_dict for var in variable_names):
-        # this is the case of a scalar ODE, where ZIPPED and VARIABLES are the same
-        if not any(isinstance(v, np.ndarray) for v in state_dict.values()):
-            return DataFormatKeys.ZIPPED
-        return DataFormatKeys.VARIABLES
-    elif all(dim in state_dict for dim in dim_names):
-        return DataFormatKeys.ZIPPED
-    else:
-        raise ValueError("Error: Unrecognizable state dict format. Something went wrong.")
-
-
-def write_to_file(result_data: List[Dict[Text, float]],
+def write_to_file(result_data: List[ModelState],
                   model_metadata: Dict[Text, Any],
                   out_dir: Text,
                   outfile_name: Text,
@@ -90,6 +50,7 @@ def write_to_file(result_data: List[Dict[Text, float]],
     :param kwargs: Additional keyword arguments, passed to pandas.to_csv.
     :return: None.
     """
+    data = []
 
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
@@ -97,11 +58,11 @@ def write_to_file(result_data: List[Dict[Text, float]],
     file_ext = ".csv"
 
     for i, res in enumerate(result_data):
-        result_data[i] = convert_to_zipped(res, model_metadata=model_metadata)
+        data[i] = convert_to_dict(res, model_metadata=model_metadata)
 
     # convert result_list to data frame
     # fast construction from list with schema dict
-    result_df = pd.DataFrame(data=result_data)
+    result_df = pd.DataFrame(data=data)
 
     out_file = os.path.join(out_dir, outfile_name)
 

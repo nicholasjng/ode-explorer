@@ -192,7 +192,10 @@ class DOPRI45(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
+        axis = None
+
         if not is_scalar(y) and len(y) != self.ks.shape[0]:
+            axis = 1
             self.ks = np.zeros((len(y), 7))
 
         hs = self.alphas * h
@@ -201,18 +204,21 @@ class DOPRI45(StepFunction):
         # FSAL rule, first eval is last eval of previous step
         ks[:, 0] = model(t, y)
         ks[:, 1] = model(t + hs[0], y + h * ks[:, 0] * self.betas[0])
-        ks[:, 2] = model(t + hs[1], y + h * np.sum(ks[:, :2] * self.betas[1], axis=1))
-        ks[:, 3] = model(t + hs[2], y + h * np.sum(ks[:, :3] * self.betas[2], axis=1))
-        ks[:, 4] = model(t + hs[3], y + h * np.sum(ks[:, :4] * self.betas[3], axis=1))
-        ks[:, 5] = model(t + hs[4], y + h * np.sum(ks[:, :5] * self.betas[4], axis=1))
+        ks[:, 2] = model(t + hs[1], y + h * np.sum(ks[:, :2] * self.betas[1], axis=axis))
+        ks[:, 3] = model(t + hs[2], y + h * np.sum(ks[:, :3] * self.betas[2], axis=axis))
+        ks[:, 4] = model(t + hs[3], y + h * np.sum(ks[:, :4] * self.betas[3], axis=axis))
+        ks[:, 5] = model(t + hs[4], y + h * np.sum(ks[:, :5] * self.betas[4], axis=axis))
 
         # 5th order solution, computed in 6 evaluations
-        ks[:, 6] = y + h * np.sum(ks[:, :6] * self.betas[-1], axis=1)
-        y_new4 = y + h * np.sum(ks * self.gammas, axis=1)
+        y_new5 = y + h * np.sum(ks[:, :6] * self.betas[-1], axis=axis)
 
-        # 5th order solution
-        new_state5 = self.make_new_state(t=t + h, y=ks[:, 6])
+        ks[:, 6] = y + h * np.sum(ks[:, :6] * self.betas[-1], axis=axis)
+
+        y_new4 = y + h * np.sum(ks * self.gammas, axis=axis)
+
+        # 4th and 5th order solution
         new_state4 = self.make_new_state(t=t + h, y=y_new4)
+        new_state5 = self.make_new_state(t=t + h, y=y_new5)
 
         return new_state4, new_state5
 

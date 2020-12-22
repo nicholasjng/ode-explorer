@@ -25,7 +25,7 @@ def main(argv):
                                step_func=RungeKutta4(),
                                initial_state=initial_state,
                                h=0.001,
-                               num_steps=10000,
+                               max_steps=10000,
                                verbosity=1,
                                progress_bar=True)
 

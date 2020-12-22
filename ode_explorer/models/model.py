@@ -42,8 +42,8 @@ class ODEModel(BaseModel):
     def update_args(self, **kwargs):
         self.fn_args.update(kwargs)
 
-    def make_initial_state(self, initial_time: float, initial_vec: Any):
-        return initial_time, initial_vec
+    def make_state(self, time: StateVariable, vec: StateVariable):
+        return time, vec
 
     def initialize_dim_names(self, initial_state: ModelState):
 

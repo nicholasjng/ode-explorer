@@ -8,7 +8,6 @@ from typing import Dict, Callable, Text, List, Union, Any
 import absl.logging
 import pandas as pd
 from tabulate import tabulate
-from tqdm import trange
 
 from ode_explorer.callbacks.callback import Callback
 from ode_explorer import constants
@@ -94,7 +93,7 @@ class Integrator:
                   initial_state: ModelState,
                   end: float,
                   h: float,
-                  num_steps: int,
+                  max_steps: int,
                   callbacks: List[Callback],
                   metrics: List[Metric]) -> Dict[Text, Any]:
 
@@ -109,7 +108,7 @@ class Integrator:
         run_config = {RunConfigKeys.START: start,
                       RunConfigKeys.END: end,
                       RunConfigKeys.STEP_SIZE: h,
-                      RunConfigKeys.NUM_STEPS: num_steps,
+                      RunConfigKeys.NUM_STEPS: max_steps,
                       RunConfigKeys.METRIC_NAMES:
                           [m.__name__ for m in metrics],
                       RunConfigKeys.CALLBACK_NAMES:
@@ -141,7 +140,7 @@ class Integrator:
                         initial_state: ModelState,
                         end: float = None,
                         h: float = None,
-                        num_steps: int = None,
+                        max_steps: int = None,
                         reset: bool = False,
                         verbosity: int = 0,
                         output_dir: Text = None,
@@ -173,7 +172,7 @@ class Integrator:
                              sc=None,
                              end=end,
                              h=h,
-                             num_steps=num_steps,
+                             max_steps=max_steps,
                              callbacks=callbacks,
                              metrics=metrics)
 
@@ -182,21 +181,15 @@ class Integrator:
 
         logger.info("Starting integration.")
 
-        if progress_bar:
-            # register to tqdm
-            iterator = trange(1, num_steps + 1)
-        else:
-            # treat initial state as state 0
-            iterator = range(1, num_steps + 1)
-
         constant_h_loop(run=run,
-                        iterator=iterator,
                         step_func=step_func,
                         model=model,
                         h=h,
+                        max_steps=max_steps,
                         state=state,
                         callbacks=callbacks,
-                        metrics=metrics)
+                        metrics=metrics,
+                        progress_bar=progress_bar)
 
         logger.info("Finished integration.")
 
@@ -249,7 +242,7 @@ class Integrator:
                              sc=sc,
                              end=end,
                              h=initial_h,
-                             num_steps=max_steps,
+                             max_steps=max_steps,
                              callbacks=callbacks,
                              metrics=metrics)
 
@@ -258,22 +251,16 @@ class Integrator:
 
         logger.info("Starting integration.")
 
-        # treat initial state as state 0
-        if progress_bar:
-            # register to tqdm
-            iterator = trange(1, max_steps + 1)
-        else:
-            iterator = range(1, max_steps + 1)
-
         dynamic_h_loop(run=run,
-                       iterator=iterator,
                        step_func=step_func,
                        model=model,
                        h=initial_h,
+                       max_steps=max_steps,
                        state=state,
                        callbacks=callbacks,
                        metrics=metrics,
-                       sc=sc)
+                       sc=sc,
+                       progress_bar=progress_bar)
 
         logger.info("Finished integration.")
 

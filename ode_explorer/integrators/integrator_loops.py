@@ -1,5 +1,6 @@
 import logging
 from typing import Any, List, Dict, Text
+from tqdm import trange
 
 from ode_explorer.callbacks.callback import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys
@@ -16,17 +17,26 @@ logger = logging.getLogger(__name__)
 
 
 def constant_h_loop(run: Dict[Text, Any],
-                    iterator: Any,
                     step_func: StepFunction,
                     model: ODEModel,
                     h: float,
+                    max_steps: int,
                     state: ModelState,
                     callbacks: List[Callback],
                     metrics: List[Metric],
+                    progress_bar: bool = False,
                     sc: StepSizeController = None):
+
     run_config = run[RunKeys.RUN_CONFIG]
 
     validate_const_h_loop(run_config=run_config)
+
+    # treat initial state as state 0
+    if progress_bar:
+        # register to tqdm
+        iterator = trange(1, max_steps + 1)
+    else:
+        iterator = range(1, max_steps + 1)
 
     for i in iterator:
         # if self._pre_step_hook:
@@ -55,19 +65,28 @@ def constant_h_loop(run: Dict[Text, Any],
 
 
 def dynamic_h_loop(run: Dict[Text, Any],
-                   iterator: Any,
                    step_func: StepFunction,
                    model: ODEModel,
                    h: float,
+                   max_steps: int,
                    state: ModelState,
                    callbacks: List[Callback],
                    metrics: List[Metric],
-                   sc: StepSizeController = None):
+                   sc: StepSizeController = None,
+                   progress_bar: bool = False):
+
     run_config = run[RunKeys.RUN_CONFIG]
 
     validate_dynamic_loop(run_config=run_config)
 
     end = run_config[RunConfigKeys.END]
+
+    # treat initial state as state 0
+    if progress_bar:
+        # register to tqdm
+        iterator = trange(1, max_steps + 1)
+    else:
+        iterator = range(1, max_steps + 1)
 
     for i in iterator:
         # if self._pre_step_hook:
@@ -111,8 +130,6 @@ def dynamic_h_loop(run: Dict[Text, Any],
         # update delayed after callback execution so that callbacks have
         # access to both the previous and the current state
         state = updated_state
-
-        # self._step_count += 1
 
 
 def validate_const_h_loop(run_config: Dict[Text, Any]):

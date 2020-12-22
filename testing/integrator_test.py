@@ -4,6 +4,7 @@ from typing import Union
 from ode_explorer.stepfunctions.stepfunctions import *
 from ode_explorer.models.model import ODEModel
 from ode_explorer.integrators.integrator import Integrator
+from ode_explorer.stepsize_control.stepsizecontroller import DOPRI45Controller
 
 
 def ode_func(t: float, y: Union[float, np.ndarray], lamb: float = 0.5):
@@ -28,6 +29,15 @@ def main(argv):
                                max_steps=10000,
                                verbosity=1,
                                progress_bar=True)
+
+    integrator.integrate_dynamically(model=model,
+                                     step_func=DOPRI45(),
+                                     sc=DOPRI45Controller(),
+                                     initial_state=initial_state,
+                                     initial_h=0.001,
+                                     verbosity=1,
+                                     end=10.0,
+                                     progress_bar=True)
 
 
 if __name__ == "__main__":

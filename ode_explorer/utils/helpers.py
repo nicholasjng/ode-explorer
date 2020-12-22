@@ -1,7 +1,7 @@
 import inspect
 from typing import Callable
 
-from ode_explorer import defaults
+from ode_explorer.defaults import standard_rhs, hamiltonian_rhs
 
 __all__ = ["is_scalar", "infer_variable_names"]
 
@@ -11,9 +11,6 @@ def is_scalar(y):
 
 
 def infer_variable_names(ode_fn: Callable):
-    standard_rhs = defaults.standard_rhs
-    hamiltonian_rhs = defaults.hamiltonian_rhs
-
     ode_argspec = inspect.getfullargspec(func=ode_fn)
 
     args = ode_argspec.args

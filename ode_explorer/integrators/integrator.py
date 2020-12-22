@@ -127,7 +127,8 @@ class Integrator:
 
         if bool(sc):
             # means dynamical integration, hence we log step size, accepts and rejects
-            initial_metrics.update({"step_size": h,
+            initial_metrics.update({"iteration": 0,
+                                    "step_size": h,
                                     "n_accept": 0,
                                     "n_reject": 0})
 

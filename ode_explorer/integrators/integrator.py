@@ -80,7 +80,7 @@ class Integrator:
                  run: Dict[Text, Any],
                  model: ODEModel,
                  step_func: StepFunction,
-                 sc: StepSizeController,
+                 sc: Union[StepSizeController, Callable],
                  initial_state: ModelState,
                  end: float,
                  h: float,
@@ -128,7 +128,7 @@ class Integrator:
             val = metric(0, initial_state, initial_state, model, locals())
             initial_metrics[metric.__name__] = val
 
-        if sc:
+        if bool(sc):
             # means dynamical integration, hence we log step size, accepts and rejects
             initial_metrics.update({"step_size": h,
                                     "n_accept": 0,

@@ -73,7 +73,7 @@ class NaNChecker(Callback):
                 # get na_keys by na_mask
                 y_new[na_mask] = self.replacement
                 corrected = (*updated_state[:-1], y_new)
-                print(corrected)
+                local_vars.update({"updated_state": corrected})
 
             else:  # ignore errors
                 logger.warning("Encountered at least one NaN "

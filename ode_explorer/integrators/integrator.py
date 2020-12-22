@@ -11,7 +11,8 @@ from tabulate import tabulate
 from tqdm import trange
 
 from ode_explorer.callbacks.callback import Callback
-from ode_explorer.constants import RunKeys, RunMetadataKeys, RunConfigKeys
+from ode_explorer import constants
+from ode_explorer.constants import RunKeys, RunConfigKeys
 from ode_explorer.integrators.integrator_loops import constant_h_loop, dynamic_h_loop
 from ode_explorer.metrics.metric import Metric
 from ode_explorer.models.model import ODEModel
@@ -19,6 +20,7 @@ from ode_explorer.stepfunctions.templates import StepFunction
 from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
 from ode_explorer.types import ModelState
 from ode_explorer.utils.data_utils import convert_to_dict
+from ode_explorer.utils.run_utils import write_run_to_disk, get_run_metadata
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -33,7 +35,7 @@ class Integrator:
                  pre_step_hook: Callable = None,
                  log_dir: Text = None,
                  logfile_name: Text = None,
-                 output_dir: Text = None):
+                 base_output_dir: Text = None):
 
         # pre-step function, will be called before each step if specified
         self._pre_step_hook = pre_step_hook
@@ -50,7 +52,10 @@ class Integrator:
 
         self._set_up_logger(log_dir=self.log_dir)
 
-        self.output_dir = output_dir or os.path.join(os.getcwd(), "results")
+        self.base_output_dir = base_output_dir or os.path.join(os.getcwd(), "results")
+
+        if not os.path.exists(self.base_output_dir):
+            os.mkdir(self.base_output_dir)
 
         logger.info("Created an Integrator instance.")
 
@@ -91,8 +96,8 @@ class Integrator:
                  callbacks: List[Callback],
                  metrics: List[Metric]):
 
-        run_metadata = {RunMetadataKeys.TIMESTAMP: datetime.datetime.now(),
-                        RunMetadataKeys.RUN_ID: uuid.uuid4()}
+        run.update({constants.TIMESTAMP: datetime.datetime.now(),
+                    constants.RUN_ID: uuid.uuid4()})
 
         # create file handler
         # TODO: Flush all previous handlers except the base to prevent clutter
@@ -135,7 +140,6 @@ class Integrator:
                                     "n_reject": 0})
 
         run.update({RunKeys.MODEL_METADATA: model.get_metadata(),
-                    RunKeys.RUN_METADATA: run_metadata,
                     RunKeys.RUN_CONFIG: run_config,
                     RunKeys.RESULT_DATA: [initial_state],
                     RunKeys.METRICS: [initial_metrics]})
@@ -149,11 +153,11 @@ class Integrator:
                         num_steps: int = None,
                         reset: bool = False,
                         verbosity: int = 0,
-                        data_outfile: Text = None,
+                        output_dir: Text = None,
                         logfile: Text = None,
+                        progress_bar: bool = False,
                         callbacks: List[Callback] = None,
-                        metrics: List[Metric] = None,
-                        progress_bar: bool = False):
+                        metrics: List[Metric] = None):
 
         # construct run object, dict for now
         run = {}
@@ -165,8 +169,8 @@ class Integrator:
         self._startup(run=run,
                       model=model,
                       step_func=step_func,
-                      sc=None,
                       initial_state=initial_state,
+                      sc=None,
                       end=end,
                       h=h,
                       num_steps=num_steps,
@@ -200,13 +204,11 @@ class Integrator:
 
         logger.info("Finished integration.")
 
-        if data_outfile:
-            self.write_data_to_file(run=run,
-                                    model_metadata=model.get_metadata(),
-                                    data_outfile=data_outfile)
+        if output_dir:
+            self.save_run(run=run, output_dir=output_dir)
 
-            logger.info("Results written to file {}.".format(
-                os.path.join(self.output_dir, data_outfile)))
+            logger.info("Results written to directory {}.".format(
+                os.path.join(self.base_output_dir, output_dir)))
 
         self.runs.append(run)
 
@@ -222,11 +224,11 @@ class Integrator:
                               max_steps: int = None,
                               reset: bool = False,
                               verbosity: int = logging.INFO,
-                              data_outfile: Text = None,
+                              output_dir: Text = None,
                               logfile: Text = None,
+                              progress_bar: bool = False,
                               callbacks: List[Callback] = None,
-                              metrics: List[Metric] = None,
-                              progress_bar: bool = False):
+                              metrics: List[Metric] = None):
 
         # construct run object
         run = {}
@@ -238,8 +240,8 @@ class Integrator:
         self._startup(run=run,
                       model=model,
                       step_func=step_func,
-                      sc=sc,
                       initial_state=initial_state,
+                      sc=sc,
                       end=end,
                       h=initial_h,
                       num_steps=max_steps,
@@ -274,13 +276,11 @@ class Integrator:
 
         logger.info("Finished integration.")
 
-        if data_outfile:
-            self.write_data_to_file(run=run,
-                                    model_metadata=model.get_metadata(),
-                                    data_outfile=data_outfile)
+        if output_dir:
+            self.save_run(run=run, output_dir=output_dir)
 
-            logger.info("Results written to file {}.".format(
-                os.path.join(self.log_dir, data_outfile)))
+            logger.info("Run results saved to directory {}.".format(
+                os.path.join(self.base_output_dir, output_dir)))
 
         self.runs.append(run)
 
@@ -291,7 +291,7 @@ class Integrator:
             print("No runs available!")
             return
 
-        metadata_list = [run[RunKeys.RUN_METADATA] for run in self.runs]
+        metadata_list = [get_run_metadata(run) for run in self.runs]
 
         print(tabulate(metadata_list, headers="keys", tablefmt=tablefmt))
 
@@ -301,7 +301,7 @@ class Integrator:
         if run_id == "latest":
             return self.runs[-1]
         try:
-            run = next(r for r in self.runs if run_id in str(r[RunKeys.RUN_METADATA][RunMetadataKeys.RUN_ID]))
+            run = next(r for r in self.runs if run_id in str(r[constants.RUN_ID]))
         except StopIteration:
             raise ValueError(f"Run with ID {run_id} not found.")
 
@@ -324,20 +324,9 @@ class Integrator:
 
         return pd.DataFrame(run[RunKeys.METRICS])
 
-    def write_data_to_file(self, run, model_metadata, data_outfile: Text = None, **kwargs):
-        data_outfile = data_outfile or "run_" + \
-                       datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-
-        run_result = copy.deepcopy(run[RunKeys.RESULT_DATA])
-
-        for i, res in enumerate(run_result):
-            run_result[i] = convert_to_dict(res, model_metadata=model_metadata)
-
-        run_data = pd.DataFrame(run_result)
-
-        out_file = os.path.join(self.output_dir, data_outfile)
-
-        run_data.to_csv(out_file, **kwargs)
+    def save_run(self, run: Dict, output_dir):
+        out_dir = os.path.join(self.base_output_dir, output_dir)
+        write_run_to_disk(run=run, out_dir=out_dir)
 
     def visualize(self, run_id: Text, ax=None):
 

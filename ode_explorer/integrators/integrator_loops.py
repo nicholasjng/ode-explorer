@@ -2,7 +2,8 @@ import logging
 from typing import Any, List, Dict, Text
 
 from ode_explorer.callbacks.callback import Callback
-from ode_explorer.constants import RunKeys, RunConfigKeys, DynamicVariables
+from ode_explorer.constants import RunKeys, RunConfigKeys
+from ode_explorer import defaults
 from ode_explorer.metrics.metric import Metric
 from ode_explorer.models.model import ODEModel
 from ode_explorer.stepfunctions.templates import StepFunction
@@ -163,15 +164,15 @@ def validate_dynamic_loop(run_config: Dict[Text, Any], logger: logging.Logger):
                          "than the starting value.")
 
     if not initial_h:
-        logger.warning(f"No maximum step count supplied, falling "
+        logger.warning(f"No initial step size supplied, falling "
                        f"back to builtin initial step size "
-                       f"of {DynamicVariables.INITIAL_H}.")
-        initial_h = DynamicVariables.INITIAL_H
+                       f"of {defaults.INITIAL_H}.")
+        initial_h = defaults.INITIAL_H
         run_config[RunConfigKeys.STEP_SIZE] = initial_h
 
     if not max_steps:
         logger.warning(f"No maximum step count supplied, falling "
                        f"back to builtin maximum step count "
-                       f"of {DynamicVariables.MAX_STEPS}.")
-        max_steps = DynamicVariables.MAX_STEPS
+                       f"of {defaults.MAX_STEPS}.")
+        max_steps = defaults.MAX_STEPS
         run_config[RunConfigKeys.NUM_STEPS] = max_steps

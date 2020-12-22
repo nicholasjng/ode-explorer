@@ -81,36 +81,28 @@ class Integrator:
         logger.addHandler(fh)
         logger.info('Creating an Integrator instance.')
 
-    def _startup(self,
-                 run: Dict[Text, Any],
-                 model: ODEModel,
-                 step_func: StepFunction,
-                 sc: Union[StepSizeController, Callable],
-                 initial_state: ModelState,
-                 end: float,
-                 h: float,
-                 num_steps: int,
-                 reset: bool,
-                 verbosity: int,
-                 logfile: Text,
-                 callbacks: List[Callback],
-                 metrics: List[Metric]):
+    def _flush_stale_file_handlers(self):
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler):
+                if handler.baseFilename != self.logfile_name:
+                    logger.handlers.remove(handler)
 
-        run.update({constants.TIMESTAMP: datetime.datetime.now(),
-                    constants.RUN_ID: uuid.uuid4()})
+    @staticmethod
+    def _make_run(model: ODEModel,
+                  step_func: StepFunction,
+                  sc: Union[StepSizeController, Callable],
+                  initial_state: ModelState,
+                  end: float,
+                  h: float,
+                  num_steps: int,
+                  callbacks: List[Callback],
+                  metrics: List[Metric]) -> Dict[Text, Any]:
 
-        # create file handler
-        # TODO: Flush all previous handlers except the base to prevent clutter
-        if logfile:
-            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
-            logger.addHandler(fh)
-            fh.setLevel(verbosity)
+        run = {constants.TIMESTAMP: datetime.datetime.now(),
+               constants.RUN_ID: uuid.uuid4()}
 
         # initialize dimension names
         model.initialize_dim_names(initial_state)
-
-        for handler in logger.handlers:
-            handler.setLevel(verbosity)
 
         start = initial_state[0]
 
@@ -123,9 +115,6 @@ class Integrator:
                       RunConfigKeys.CALLBACK_NAMES:
                           [c.__name__ for c in callbacks]
                       }
-
-        if reset:
-            self._reset()
 
         initial_metrics = {}
 
@@ -144,6 +133,8 @@ class Integrator:
                     RunKeys.RESULT_DATA: [initial_state],
                     RunKeys.METRICS: [initial_metrics]})
 
+        return run
+
     def integrate_const(self,
                         model: ODEModel,
                         step_func: StepFunction,
@@ -159,26 +150,32 @@ class Integrator:
                         callbacks: List[Callback] = None,
                         metrics: List[Metric] = None):
 
-        # construct run object, dict for now
-        run = {}
-
-        # callbacks and metrics, to be executed/computed after the step
+        # callbacks and metrics
         callbacks = callbacks or []
         metrics = metrics or []
 
-        self._startup(run=run,
-                      model=model,
-                      step_func=step_func,
-                      initial_state=initial_state,
-                      sc=None,
-                      end=end,
-                      h=h,
-                      num_steps=num_steps,
-                      reset=reset,
-                      verbosity=verbosity,
-                      logfile=logfile,
-                      callbacks=callbacks,
-                      metrics=metrics)
+        if reset:
+            self._reset()
+
+        # create file handler
+        if logfile:
+            self._flush_stale_file_handlers()
+            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
+            logger.addHandler(fh)
+
+        for handler in logger.handlers:
+            handler.setLevel(verbosity)
+
+        # construct run object
+        run = self._make_run(model=model,
+                             step_func=step_func,
+                             initial_state=initial_state,
+                             sc=None,
+                             end=end,
+                             h=h,
+                             num_steps=num_steps,
+                             callbacks=callbacks,
+                             metrics=metrics)
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
@@ -199,15 +196,14 @@ class Integrator:
                         h=h,
                         state=state,
                         callbacks=callbacks,
-                        metrics=metrics,
-                        logger=logger)
+                        metrics=metrics)
 
         logger.info("Finished integration.")
 
         if output_dir:
             self.save_run(run=run, output_dir=output_dir)
 
-            logger.info("Results written to directory {}.".format(
+            logger.info("Run results saved to directory {}.".format(
                 os.path.join(self.base_output_dir, output_dir)))
 
         self.runs.append(run)
@@ -230,26 +226,32 @@ class Integrator:
                               callbacks: List[Callback] = None,
                               metrics: List[Metric] = None):
 
-        # construct run object
-        run = {}
-
-        # callbacks and metrics, to be executed/computed after the step
+        # callbacks and metrics
         callbacks = callbacks or []
         metrics = metrics or []
 
-        self._startup(run=run,
-                      model=model,
-                      step_func=step_func,
-                      initial_state=initial_state,
-                      sc=sc,
-                      end=end,
-                      h=initial_h,
-                      num_steps=max_steps,
-                      reset=reset,
-                      verbosity=verbosity,
-                      logfile=logfile,
-                      callbacks=callbacks,
-                      metrics=metrics)
+        if reset:
+            self._reset()
+
+        # create file handler
+        if logfile:
+            self._flush_stale_file_handlers()
+            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
+            logger.addHandler(fh)
+
+        for handler in logger.handlers:
+            handler.setLevel(verbosity)
+
+        # construct run object
+        run = self._make_run(model=model,
+                             step_func=step_func,
+                             initial_state=initial_state,
+                             sc=sc,
+                             end=end,
+                             h=initial_h,
+                             num_steps=max_steps,
+                             callbacks=callbacks,
+                             metrics=metrics)
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
@@ -271,8 +273,7 @@ class Integrator:
                        state=state,
                        callbacks=callbacks,
                        metrics=metrics,
-                       sc=sc,
-                       logger=logger)
+                       sc=sc)
 
         logger.info("Finished integration.")
 

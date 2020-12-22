@@ -12,6 +12,8 @@ from ode_explorer.types import ModelState
 
 __all__ = ["constant_h_loop", "dynamic_h_loop"]
 
+logger = logging.getLogger(__name__)
+
 
 def constant_h_loop(run: Dict[Text, Any],
                     iterator: Any,
@@ -21,11 +23,10 @@ def constant_h_loop(run: Dict[Text, Any],
                     state: ModelState,
                     callbacks: List[Callback],
                     metrics: List[Metric],
-                    sc: StepSizeController = None,
-                    logger: logging.Logger = None):
+                    sc: StepSizeController = None):
     run_config = run[RunKeys.RUN_CONFIG]
 
-    validate_const_h_loop(run_config=run_config, logger=logger)
+    validate_const_h_loop(run_config=run_config)
 
     for i in iterator:
         # if self._pre_step_hook:
@@ -61,11 +62,10 @@ def dynamic_h_loop(run: Dict[Text, Any],
                    state: ModelState,
                    callbacks: List[Callback],
                    metrics: List[Metric],
-                   sc: StepSizeController = None,
-                   logger: logging.Logger = None):
+                   sc: StepSizeController = None):
     run_config = run[RunKeys.RUN_CONFIG]
 
-    validate_dynamic_loop(run_config=run_config, logger=logger)
+    validate_dynamic_loop(run_config=run_config)
 
     end = run_config[RunConfigKeys.END]
 
@@ -115,7 +115,7 @@ def dynamic_h_loop(run: Dict[Text, Any],
         # self._step_count += 1
 
 
-def validate_const_h_loop(run_config: Dict[Text, Any], logger: logging.Logger):
+def validate_const_h_loop(run_config: Dict[Text, Any]):
     start = run_config[RunConfigKeys.START]
     end = run_config[RunConfigKeys.END]
     num_steps = run_config[RunConfigKeys.NUM_STEPS]
@@ -153,7 +153,7 @@ def validate_const_h_loop(run_config: Dict[Text, Any], logger: logging.Logger):
         run_config.update({RunConfigKeys.NUM_STEPS: num_steps})
 
 
-def validate_dynamic_loop(run_config: Dict[Text, Any], logger: logging.Logger):
+def validate_dynamic_loop(run_config: Dict[Text, Any]):
     start = run_config[RunConfigKeys.START]
     end = run_config[RunConfigKeys.END]
     max_steps = run_config[RunConfigKeys.NUM_STEPS]

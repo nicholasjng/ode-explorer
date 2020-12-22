@@ -108,9 +108,12 @@ def dynamic_h_loop(run: Dict[Text, Any],
 
         # e.g. DOPRI45 returns a tuple of estimates, as do embedded RKs
         if isinstance(updated_state, (tuple, list)):
-            current = updated_state[0][0]
+            # TODO: This needs work, maybe infer which one is the higher order
+            lower_order_sol, higher_order_sol = updated_state
+            current = higher_order_sol[0]
         else:
-            current = updated_state[0]
+            higher_order_sol = updated_state
+            current = higher_order_sol[0]
 
         if current + h > end:
             h = end - current
@@ -122,25 +125,25 @@ def dynamic_h_loop(run: Dict[Text, Any],
                        "n_reject": run[RunKeys.METRICS][i - 1]["n_reject"] + int(not accepted)}
 
         for metric in metrics:
-            new_metrics[metric.__name__] = metric(i, state, updated_state, model, locals())
+            new_metrics[metric.__name__] = metric(i, state, higher_order_sol, model, locals())
 
         run[RunKeys.METRICS].append(new_metrics)
 
         # execute the registered callbacks after the step
         for callback in callbacks:
-            callback(i, state, updated_state, model, locals())
+            callback(i, state, higher_order_sol, model, locals())
 
         if not accepted:
             continue
 
-        run[RunKeys.RESULT_DATA].append(updated_state)
+        run[RunKeys.RESULT_DATA].append(higher_order_sol)
 
         if current >= end:
             break
 
         # update delayed after callback execution so that callbacks have
         # access to both the previous and the current state
-        state = updated_state
+        state = higher_order_sol
 
 
 def validate_const_h_loop(run_config: Dict[Text, Any]):

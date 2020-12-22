@@ -12,7 +12,7 @@ from tabulate import tabulate
 from ode_explorer.callbacks.callback import Callback
 from ode_explorer import constants
 from ode_explorer.constants import RunKeys, RunConfigKeys
-from ode_explorer.integrators.integrator_loops import constant_h_loop, dynamic_h_loop
+from ode_explorer.integrators.integrator_loops import integrator_loops
 from ode_explorer.metrics.metric import Metric
 from ode_explorer.models.model import ODEModel
 from ode_explorer.stepfunctions.templates import StepFunction
@@ -97,6 +97,10 @@ class Integrator:
                   callbacks: List[Callback],
                   metrics: List[Metric]) -> Dict[Text, Any]:
 
+        # callbacks and metrics
+        callbacks = callbacks or []
+        metrics = metrics or []
+
         run = {constants.TIMESTAMP: datetime.datetime.now(),
                constants.RUN_ID: uuid.uuid4()}
 
@@ -134,24 +138,18 @@ class Integrator:
 
         return run
 
-    def integrate_const(self,
-                        model: ODEModel,
-                        step_func: StepFunction,
-                        initial_state: ModelState,
-                        end: float = None,
-                        h: float = None,
-                        max_steps: int = None,
-                        reset: bool = False,
-                        verbosity: int = 0,
-                        output_dir: Text = None,
-                        logfile: Text = None,
-                        progress_bar: bool = False,
-                        callbacks: List[Callback] = None,
-                        metrics: List[Metric] = None):
-
-        # callbacks and metrics
-        callbacks = callbacks or []
-        metrics = metrics or []
+    def _integrate(self,
+                   loop_type: Text,
+                   model: ODEModel,
+                   step_func: StepFunction,
+                   initial_state: ModelState,
+                   end: float,
+                   reset: bool = False,
+                   verbosity: int = 0,
+                   output_dir: Text = None,
+                   logfile: Text = None,
+                   progress_bar: bool = False,
+                   **loop_kwargs):
 
         if reset:
             self._reset()
@@ -169,27 +167,20 @@ class Integrator:
         run = self._make_run(model=model,
                              step_func=step_func,
                              initial_state=initial_state,
-                             sc=None,
                              end=end,
-                             h=h,
-                             max_steps=max_steps,
-                             callbacks=callbacks,
-                             metrics=metrics)
+                             **loop_kwargs)
 
         # deepcopy here, otherwise the initial state gets overwritten
         state = copy.deepcopy(initial_state)
 
         logger.info("Starting integration.")
 
-        constant_h_loop(run=run,
-                        step_func=step_func,
-                        model=model,
-                        h=h,
-                        max_steps=max_steps,
-                        state=state,
-                        callbacks=callbacks,
-                        metrics=metrics,
-                        progress_bar=progress_bar)
+        integrator_loops.get(loop_type)(run=run,
+                                        step_func=step_func,
+                                        model=model,
+                                        state=state,
+                                        progress_bar=progress_bar,
+                                        **loop_kwargs)
 
         logger.info("Finished integration.")
 
@@ -202,6 +193,37 @@ class Integrator:
         self.runs.append(run)
 
         return self
+
+    def integrate_const(self,
+                        model: ODEModel,
+                        step_func: StepFunction,
+                        initial_state: ModelState,
+                        end: float = None,
+                        h: float = None,
+                        max_steps: int = None,
+                        reset: bool = False,
+                        verbosity: int = logging.INFO,
+                        output_dir: Text = None,
+                        logfile: Text = None,
+                        progress_bar: bool = False,
+                        callbacks: List[Callback] = None,
+                        metrics: List[Metric] = None):
+
+        return self._integrate(loop_type="constant",
+                               model=model,
+                               step_func=step_func,
+                               initial_state=initial_state,
+                               end=end,
+                               h=h,
+                               max_steps=max_steps,
+                               reset=reset,
+                               verbosity=verbosity,
+                               output_dir=output_dir,
+                               logfile=logfile,
+                               progress_bar=progress_bar,
+                               callbacks=callbacks,
+                               metrics=metrics,
+                               sc=None)
 
     def integrate_dynamically(self,
                               model: ODEModel,
@@ -219,60 +241,21 @@ class Integrator:
                               callbacks: List[Callback] = None,
                               metrics: List[Metric] = None):
 
-        # callbacks and metrics
-        callbacks = callbacks or []
-        metrics = metrics or []
-
-        if reset:
-            self._reset()
-
-        # create file handler
-        if logfile:
-            self._flush_stale_file_handlers()
-            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
-            logger.addHandler(fh)
-
-        for handler in logger.handlers:
-            handler.setLevel(verbosity)
-
-        # construct run object
-        run = self._make_run(model=model,
-                             step_func=step_func,
-                             initial_state=initial_state,
-                             sc=sc,
-                             end=end,
-                             h=initial_h,
-                             max_steps=max_steps,
-                             callbacks=callbacks,
-                             metrics=metrics)
-
-        # deepcopy here, otherwise the initial state gets overwritten
-        state = copy.deepcopy(initial_state)
-
-        logger.info("Starting integration.")
-
-        dynamic_h_loop(run=run,
-                       step_func=step_func,
-                       model=model,
-                       h=initial_h,
-                       max_steps=max_steps,
-                       state=state,
-                       callbacks=callbacks,
-                       metrics=metrics,
-                       sc=sc,
-                       progress_bar=progress_bar)
-
-        logger.info("Finished integration.")
-
-        if output_dir:
-            self.save_run(run=run, output_dir=output_dir)
-
-            logger.info("Run results saved to directory {}.".format(
-                os.path.join(self.base_output_dir, output_dir)))
-
-        self.runs.append(run)
-
-        return self
+        return self._integrate(loop_type="dynamic",
+                               model=model,
+                               step_func=step_func,
+                               initial_state=initial_state,
+                               end=end,
+                               h=initial_h,
+                               max_steps=max_steps,
+                               reset=reset,
+                               verbosity=verbosity,
+                               output_dir=output_dir,
+                               logfile=logfile,
+                               progress_bar=progress_bar,
+                               callbacks=callbacks,
+                               metrics=metrics,
+                               sc=sc)
 
     def list_runs(self, tablefmt: Text = "github"):
         if len(self.runs) == 0:

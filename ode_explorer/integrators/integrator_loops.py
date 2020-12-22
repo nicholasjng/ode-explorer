@@ -11,7 +11,7 @@ from ode_explorer.stepfunctions.templates import StepFunction
 from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
 from ode_explorer.types import ModelState
 
-__all__ = ["constant_h_loop", "dynamic_h_loop"]
+__all__ = ["constant_h_loop", "dynamic_h_loop", "integrator_loops"]
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,10 @@ def constant_h_loop(run: Dict[Text, Any],
                     metrics: List[Metric],
                     progress_bar: bool = False,
                     sc: StepSizeController = None):
+
+    # callbacks and metrics
+    callbacks = callbacks or []
+    metrics = metrics or []
 
     run_config = run[RunKeys.RUN_CONFIG]
 
@@ -193,3 +197,7 @@ def validate_dynamic_loop(run_config: Dict[Text, Any]):
                        f"of {defaults.MAX_STEPS}.")
         max_steps = defaults.MAX_STEPS
         run_config[RunConfigKeys.NUM_STEPS] = max_steps
+
+
+integrator_loops = {"constant": constant_h_loop,
+                    "dynamic": dynamic_h_loop}

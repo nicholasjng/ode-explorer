@@ -7,11 +7,7 @@ from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.types import ModelState
 from ode_explorer.utils.helpers import is_scalar
 
-__all__ = ["convert_to_dict", "write_to_file", "make_log_dir"]
-
-
-def make_log_dir():
-    pass
+__all__ = ["convert_to_dict", "write_to_file"]
 
 
 def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any]):

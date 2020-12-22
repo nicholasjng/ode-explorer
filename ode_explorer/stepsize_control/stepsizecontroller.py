@@ -40,6 +40,7 @@ class DOPRI45Controller(StepSizeController):
                  updated_state: ModelState,
                  model: ODEModel,
                  local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
+
         order4, order5 = updated_state
 
         y_prev = state[-1]
@@ -48,7 +49,7 @@ class DOPRI45Controller(StepSizeController):
 
         err_tol = self.atol + self.rtol * np.maximum(np.abs(y_prev), np.abs(y_5))
 
-        err_ratio = np.linalg.norm(y_4 / err_tol)
+        err_ratio = np.linalg.norm((y_4 - y_5) / err_tol)
 
         accept = err_ratio < 1.
 

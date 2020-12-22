@@ -79,9 +79,15 @@ def dynamic_h_loop(run: Dict[Text, Any],
                    sc: StepSizeController = None,
                    progress_bar: bool = False):
 
+    # callbacks and metrics
+    callbacks = callbacks or []
+    metrics = metrics or []
+
     run_config = run[RunKeys.RUN_CONFIG]
 
     validate_dynamic_loop(run_config=run_config)
+
+    max_steps = run_config[RunConfigKeys.NUM_STEPS]
 
     end = run_config[RunConfigKeys.END]
 
@@ -117,7 +123,8 @@ def dynamic_h_loop(run: Dict[Text, Any],
 
         for metric in metrics:
             new_metrics[metric.__name__] = metric(i, state, updated_state, model, locals())
-            run[RunKeys.METRICS].append(new_metrics)
+
+        run[RunKeys.METRICS].append(new_metrics)
 
         # execute the registered callbacks after the step
         for callback in callbacks:

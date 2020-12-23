@@ -19,6 +19,26 @@ class StepFunction:
     def __init__(self, order: int = 0):
         # order of the method
         self.order = order
+        self.model_dim = 0
+        self.num_stages = 0
+        self.axis = None
+
+    def _adjust_dims(self, y: StateVariable):
+        scalar_ode = is_scalar(y)
+
+        if scalar_ode:
+            model_dim, axis = 1, None
+            shape = (self.num_stages,)
+        else:
+            model_dim, axis = len(y), 0
+            shape = (self.num_stages, model_dim)
+
+        self.model_dim = model_dim
+        self.axis = axis
+        self.ks = np.zeros(shape=shape)
+
+    def _get_shape(self, y: StateVariable):
+        return (self.num_stages,) if is_scalar(y) else (len(y), self.num_stages)
 
     @staticmethod
     def get_data_from_state(state: ModelState):
@@ -51,7 +71,7 @@ class ExplicitRungeKuttaMethod(StepFunction):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.ks = np.zeros((1, betas.shape[0]))
+        self.ks = np.zeros(betas.shape[0])
 
     @staticmethod
     def validate_butcher_tableau(alphas: np.ndarray,
@@ -85,21 +105,22 @@ class ExplicitRungeKuttaMethod(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
-        if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            self.ks = np.zeros((len(y), self.num_stages))
+        if self._get_shape(y) != self.ks.shape:
+            self._adjust_dims(y)
 
         ha = self.alphas * h
         hg = self.gammas * h
         ks = self.ks
 
-        for i in range(self.num_stages):
-            # first row of betas is a zero row
-            # because it is an explicit RK
-            ks[:, i] = model(t + ha[i], y + ha[i] * ks.dot(self.betas[i]))
+        ks[0] = model(t, y)
 
-        y_new = y + np.sum(ks * hg, axis=1)
+        for i in range(1, self.num_stages):
+            # first row of betas is a zero row because it is an explicit RK
+            ks[i] = model(t + ha[i], y + ha[i] * np.dot(self.betas[i], ks[:i]))
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        y_new = y + np.dot(hg, ks)
+
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -120,7 +141,7 @@ class ImplicitRungeKuttaMethod(StepFunction):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.ks = np.zeros((1, betas.shape[0]))
+        self.ks = np.zeros(betas.shape[0])
 
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
@@ -164,8 +185,6 @@ class ImplicitRungeKuttaMethod(StepFunction):
         def F(x: np.ndarray) -> np.ndarray:
 
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            # TODO: Vectorizing this needs to happen in JAX, that would be
-            #  amazing. Also adding a Jacobian
             model_stack = np.hstack(model(t + ha[i], x.reshape((n, m)).dot(hb[i])) for i in range(m))
 
             return model_stack - x
@@ -185,17 +204,14 @@ class ImplicitRungeKuttaMethod(StepFunction):
             # TODO: Retry here in case of convergence failure?
             root_res = root(F, x0=ks.reshape((n * m,)), args=args, **self.solver_kwargs)
 
-            # this line ensures that np.sum returns a scalar for a scalar ODE
-            axis = None if is_scalar(y) else 1
-
-            y_new = y + np.sum(root_res.x.reshape((n, m)) * hg, axis=axis)
+            y_new = y + np.dot(hg, root_res.x.reshape((n, m)))
 
         else:
             root_res = root_scalar(F_scalar, args=args, **self.solver_kwargs)
 
             y_new = y + hg[0] * root_res.x
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -315,7 +331,7 @@ class ExplicitMultiStepMethod(StepFunction):
         self.y_cache[:, -1] = y_new
         self.f_cache[:, -1] = model(t + h, y_new)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 

@@ -272,20 +272,22 @@ class ImplicitRungeKuttaMethod(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
-        if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            self.ks = np.zeros((len(y), self.num_stages))
+        if self._get_shape(y) != self.ks.shape:
+            self._adjust_dims(y)
 
         ha = self.alphas * h
         hb = self.betas * h
         hg = self.gammas * h
         ks = self.ks
 
-        n, m = ks.shape
+        initial_shape = ks.shape
+        shape_prod = np.prod(initial_shape)
 
         def F(x: np.ndarray) -> np.ndarray:
 
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = np.hstack(model(t + ha[i], x.reshape((n, m)).dot(hb[i])) for i in range(m))
+            model_stack = np.hstack(model(t + ha[i], x.reshape(initial_shape).dot(hb[i]))
+                                    for i in range(self.num_stages))
 
             return model_stack - x
 
@@ -300,11 +302,11 @@ class ImplicitRungeKuttaMethod(StepFunction):
         else:
             args = ()
 
-        if n * m != 1:
+        if shape_prod != 1:
             # TODO: Retry here in case of convergence failure?
-            root_res = root(F, x0=ks.reshape((n * m,)), args=args, **self.solver_kwargs)
+            root_res = root(F, x0=ks.reshape((shape_prod,)), args=args, **self.solver_kwargs)
 
-            y_new = y + np.dot(hg, root_res.x.reshape((n, m)))
+            y_new = y + np.dot(hg, root_res.x.reshape(initial_shape))
 
         else:
             root_res = root_scalar(F_scalar, x0=y, x1=y+hg[0], args=args, **self.solver_kwargs)

@@ -1,7 +1,7 @@
 import setuptools
 from ode_explorer.version import PACKAGE_NAME, PACKAGE_VERSION, PACKAGE_AUTHOR
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(

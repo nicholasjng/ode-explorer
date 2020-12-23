@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import root, root_scalar
 
 from ode_explorer.models.model import ODEModel
-from ode_explorer.stepfunctions.templates import StepFunction
+from ode_explorer.stepfunctions.templates import StepFunction, ExplicitMultiStepMethod
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
 
@@ -280,69 +280,17 @@ class ImplicitEulerMethod(StepFunction):
         return new_state
 
 
-class AdamsBashforth2(StepFunction):
+class AdamsBashforth2(ExplicitMultiStepMethod):
     """
     Adams-Bashforth Method of order 2 for ODE solving.
     """
 
     def __init__(self, startup: StepFunction):
-        super(AdamsBashforth2, self).__init__(order=2)
 
-        # startup calculation variables, only for multi-step methods
-        self.ready = False
-        self.startup = startup
-
-        # side cache for additional steps
-        self.y_cache = np.ones((1, 2))
-        self.t_cache = np.zeros(2)
-        self.f_cache = np.zeros_like(self.y_cache)
-
-        # multi-step method variables
-        self.a_coeffs = np.array([1.0])  # unused
-        self.b_coeffs = np.array([1.5, -0.5])
-
-    def reset(self):
-        # Resets the run so that next time the step function is called,
-        # new startup values will be calculated with the saved startup step
-        # function. Useful if the step function is supposed to be reused in
-        # multiple non-consecutive runs.
-        self.ready = False
-
-    def perform_startup_calculation(self,
-                                    model: ODEModel,
-                                    state: ModelState,
-                                    h: float,
-                                    **kwargs):
-
-        t, y = self.get_data_from_state(state=state)
-
-        if not is_scalar(y) and len(y) != self.y_cache.shape[0]:
-            self.y_cache = np.zeros((len(y), 2))
-
-        self.t_cache[0], self.y_cache[:, 0] = t, y
-
-        startup_state = self.startup.forward(model=model,
-                                             state=state,
-                                             h=h, **kwargs)
-
-        t1, y1 = self.get_data_from_state(state=startup_state)
-
-        self.t_cache[1], self.y_cache[:, 1] = t1, y1
-
-        # fill function evaluation cache
-        self.f_cache[:, 0] = model(t, y)
-        self.f_cache[:, 1] = model(t1, y1)
-
-        self.ready = True
-
-    def get_cached_values(self, t: float):
-        eps = 1e-15
-        closest_in_cache = np.isclose(self.t_cache, t)
-        idx = np.argmax(closest_in_cache) + 1
-        if not any(closest_in_cache):
-            idx = np.argmax(self.t_cache > t + eps)
-
-        return self.t_cache[idx], self.y_cache[idx]
+        b_coeffs = np.array([1.5, -0.5])
+        super(AdamsBashforth2, self).__init__(order=2,
+                                              startup=startup,
+                                              b_coeffs=b_coeffs)
 
     def forward(self,
                 model: ODEModel,
@@ -358,9 +306,7 @@ class AdamsBashforth2(StepFunction):
                                              h=h,
                                              **kwargs)
 
-            y_new = self.y_cache[:, 1]
-
-            new_state = self.make_new_state(t=self.t_cache[-1], y=y_new)
+            new_state = self.make_new_state(t=self.t_cache[0], y=self.y_cache[0])
 
             return new_state
 
@@ -375,16 +321,16 @@ class AdamsBashforth2(StepFunction):
 
             return new_state
 
-        y_new = y + h * np.sum(self.b_coeffs * self.f_cache, axis=1)
+        y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
 
         # shift all y and all f evaluations to the left by 1,
         # we only need the two previous steps
-        self.y_cache = np.roll(self.y_cache, shift=-1, axis=1)
-        self.f_cache = np.roll(self.f_cache, shift=-1, axis=1)
+        self.y_cache = np.roll(self.y_cache, shift=-1, axis=0)
+        self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
 
-        self.y_cache[:, -1] = y_new
-        self.f_cache[:, -1] = model(t + h, y_new)
+        self.y_cache[-1] = y_new
+        self.f_cache[-1] = model(t+h, y_new)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state

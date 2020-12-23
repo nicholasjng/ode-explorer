@@ -207,9 +207,9 @@ class ImplicitRungeKuttaMethod(StepFunction):
             y_new = y + np.dot(hg, root_res.x.reshape((n, m)))
 
         else:
-            root_res = root_scalar(F_scalar, args=args, **self.solver_kwargs)
+            root_res = root_scalar(F_scalar, x0=y, x1=y+hg[0], args=args, **self.solver_kwargs)
 
-            y_new = y + hg[0] * root_res.x
+            y_new = y + hg[0] * root_res.root
 
         new_state = self.make_new_state(t=t+h, y=y_new)
 

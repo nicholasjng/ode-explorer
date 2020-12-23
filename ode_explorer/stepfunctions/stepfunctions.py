@@ -16,13 +16,6 @@ __all__ = ["EulerMethod",
            "ImplicitEulerMethod",
            "AdamsBashforth2"]
 
-# TODO: The intermediate steps are not returning scalars for scalar ODEs.
-#  A lot of ODEs can naturally be vectorized but this is still a problem,
-#  because you should not rely on this to work. -> Fix
-#  by overloading the a[0] indexing operator, for arrays of shape (n,) (returning a scalar)
-#  and for arrays of shape (m,n) (returning an array of shape n, the model dimension).
-#  Allocate an array depending on which it is on construction time
-
 
 class EulerMethod(StepFunction):
     """
@@ -249,9 +242,9 @@ class ImplicitEulerMethod(StepFunction):
         super(ImplicitEulerMethod, self).__init__(order=2)
 
         # Runge-Kutta specific variables
-        self.k = np.ones(1)
         self.alpha = 1.0
         self.gamma = 1.0
+        self.num_stages = 1
 
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
@@ -263,9 +256,6 @@ class ImplicitEulerMethod(StepFunction):
                 **kwargs) -> ModelState:
 
         t, y = self.get_data_from_state(state=state)
-
-        if not is_scalar(y) and len(y) != len(self.k):
-            self.k = np.zeros(len(y))
 
         def F(x: StateVariable) -> StateVariable:
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
@@ -279,11 +269,11 @@ class ImplicitEulerMethod(StepFunction):
 
         # TODO: Retry here in case of convergence failure?
         if is_scalar(y):
-            root_res = root_scalar(F, args=args, **self.solver_kwargs)
+            root_res = root_scalar(F, args=args, x0=y, x1=y+h, **self.solver_kwargs)
+            y_new = root_res.root
         else:
-            root_res = root(F, x0=self.k, args=args, **self.solver_kwargs)
-
-        y_new = root_res.x
+            root_res = root(F, x0=y, args=args, **self.solver_kwargs)
+            y_new = root_res.x
 
         new_state = self.make_new_state(t=t+h, y=y_new)
 

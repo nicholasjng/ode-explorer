@@ -16,6 +16,13 @@ __all__ = ["EulerMethod",
            "ImplicitEulerMethod",
            "AdamsBashforth2"]
 
+# TODO: The intermediate steps are not returning scalars for scalar ODEs.
+#  A lot of ODEs can naturally be vectorized but this is still a problem,
+#  because you should not rely on this to work. -> Fix
+#  by overloading the a[0] indexing operator, for arrays of shape (n,) (returning a scalar)
+#  and for arrays of shape (m,n) (returning an array of shape n, the model dimension).
+#  Allocate an array depending on which it is on construction time
+
 
 class EulerMethod(StepFunction):
     """
@@ -30,11 +37,12 @@ class EulerMethod(StepFunction):
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+
         t, y = self.get_data_from_state(state=state)
 
         y_new = y + h * model(t, y)
 
-        new_state = self.make_new_state(y=y_new, t=t + h)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -46,7 +54,10 @@ class HeunMethod(StepFunction):
 
     def __init__(self):
         super(HeunMethod, self).__init__(order=2)
-        self.ks = np.zeros((1, 2))
+        self.num_stages = 2
+        self.model_dim = 1
+        self.ks = np.zeros(self.num_stages)
+        self.axis = None
 
     def forward(self,
                 model: ODEModel,
@@ -56,17 +67,17 @@ class HeunMethod(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
-        if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            self.ks = np.zeros((len(y), 4))
+        if self._get_shape(y) != self.ks.shape:
+            self._adjust_dims(y)
 
         hs = 0.5 * h
         ks = self.ks
 
-        ks[:, 0] = model(t, y)
-        ks[:, 1] = model(t + h, ks[:, 0])
-        y_new = y + hs * np.sum(ks, axis=1)
+        ks[0] = model(t, y)
+        ks[1] = model(t + h, ks[0])
+        y_new = y + hs * np.sum(ks, axis=self.axis)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -80,7 +91,10 @@ class RungeKutta4(StepFunction):
         super(RungeKutta4, self).__init__(order=4)
 
         self.gammas = np.array([1.0, 2.0, 2.0, 1.0]) / 6
-        self.ks = np.zeros((1, 4))
+        self.num_stages = 4
+        self.ks = np.zeros(self.num_stages)
+        self.axis = None
+        self.model_dim = 1
 
     def forward(self,
                 model: ODEModel,
@@ -90,22 +104,22 @@ class RungeKutta4(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
-        if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            self.ks = np.zeros((len(y), 4))
+        if self._get_shape(y) != self.ks.shape:
+            self._adjust_dims(y)
 
         # notation follows that in
         # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
         hs = 0.5 * h
         ks = self.ks
 
-        ks[:, 0] = model(t, y)
-        ks[:, 1] = model(t + hs, y + hs * ks[:, 0])
-        ks[:, 2] = model(t + hs, y + hs * ks[:, 1])
-        ks[:, 3] = model(t + h, y + h * ks[:, 2])
+        ks[0] = model(t, y)
+        ks[1] = model(t + hs, y + hs * ks[0])
+        ks[2] = model(t + hs, y + hs * ks[1])
+        ks[3] = model(t + h, y + h * ks[2])
 
-        y_new = y + h * np.sum(ks * self.gammas, axis=1)
+        y_new = y + h * np.dot(self.gammas, ks)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -118,7 +132,10 @@ class DOPRI5(StepFunction):
 
     def __init__(self):
         super(DOPRI5, self).__init__(order=5)
-        self.ks = np.zeros((1, 6))
+        self.num_stages = 6
+        self.ks = np.zeros(self.num_stages)
+        self.axis = None
+        self.model_dim = 1
 
         # RK-specific variables
         self.alphas = np.array([0.2, 0.3, 0.8, 8 / 9, 1.0, 1.0])
@@ -139,24 +156,24 @@ class DOPRI5(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
-        if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            self.ks = np.zeros((len(y), 6))
+        if self._get_shape(y) != self.ks.shape:
+            self._adjust_dims(y)
 
         hs = self.alphas * h
         ks = self.ks
 
-        ks[:, 0] = model(t, y)
-        ks[:, 1] = model(t + hs[0], y + h * ks[:, 0] * self.betas[0])
-        ks[:, 2] = model(t + hs[1], y + h * np.sum(ks[:, :2] * self.betas[1], axis=1))
-        ks[:, 3] = model(t + hs[2], y + h * np.sum(ks[:, :3] * self.betas[2], axis=1))
-        ks[:, 4] = model(t + hs[3], y + h * np.sum(ks[:, :4] * self.betas[3], axis=1))
-        ks[:, 5] = model(t + hs[4], y + h * np.sum(ks[:, :5] * self.betas[4], axis=1))
+        ks[0] = model(t, y)
+        ks[1] = model(t + hs[0], y + h * np.dot(self.betas[0], ks[:1]))
+        ks[2] = model(t + hs[1], y + h * np.dot(self.betas[1], ks[:2]))
+        ks[3] = model(t + hs[2], y + h * np.dot(self.betas[2], ks[:3]))
+        ks[4] = model(t + hs[3], y + h * np.dot(self.betas[3], ks[:4]))
+        ks[5] = model(t + hs[4], y + h * np.dot(self.betas[4], ks[:5]))
 
         # 5th order solution, returned in 6 evaluations
         # step size estimation does not happen here
-        y_new = y + h * np.sum(ks * self.gammas, axis=1)
+        y_new = y + h * np.dot(self.gammas, ks)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -170,7 +187,10 @@ class DOPRI45(StepFunction):
 
     def __init__(self):
         super(DOPRI45, self).__init__(order=5)
-        self.ks = np.zeros((1, 7))
+        self.num_stages = 7
+        self.ks = np.zeros(self.num_stages)
+        self.axis = None
+        self.model_dim = 1
 
         # RK-specific variables
         self.alphas = np.array([0.2, 0.3, 0.8, 8 / 9, 1.0, 1.0])
@@ -192,33 +212,30 @@ class DOPRI45(StepFunction):
 
         t, y = self.get_data_from_state(state=state)
 
-        axis = None
-
-        if not is_scalar(y) and len(y) != self.ks.shape[0]:
-            axis = 1
-            self.ks = np.zeros((len(y), 7))
+        if self._get_shape(y) != self.ks.shape:
+            self._adjust_dims(y)
 
         hs = self.alphas * h
         ks = self.ks
 
         # FSAL rule, first eval is last eval of previous step
-        ks[:, 0] = model(t, y)
-        ks[:, 1] = model(t + hs[0], y + h * ks[:, 0] * self.betas[0])
-        ks[:, 2] = model(t + hs[1], y + h * np.sum(ks[:, :2] * self.betas[1], axis=axis))
-        ks[:, 3] = model(t + hs[2], y + h * np.sum(ks[:, :3] * self.betas[2], axis=axis))
-        ks[:, 4] = model(t + hs[3], y + h * np.sum(ks[:, :4] * self.betas[3], axis=axis))
-        ks[:, 5] = model(t + hs[4], y + h * np.sum(ks[:, :5] * self.betas[4], axis=axis))
+        ks[0] = model(t, y)
+        ks[1] = model(t + hs[0], y + h * ks[0] * self.betas[0])
+        ks[2] = model(t + hs[1], y + h * np.dot(self.betas[1], ks[:2]))
+        ks[3] = model(t + hs[2], y + h * np.dot(self.betas[2], ks[:3]))
+        ks[4] = model(t + hs[3], y + h * np.dot(self.betas[3], ks[:4]))
+        ks[5] = model(t + hs[4], y + h * np.dot(self.betas[4], ks[:5]))
 
         # 5th order solution, computed in 6 evaluations
-        y_new5 = y + h * np.sum(ks[:, :6] * self.betas[-1], axis=axis)
+        y_new5 = y + h * np.dot(self.betas[-1], ks[:6])
 
-        ks[:, 6] = y + h * np.sum(ks[:, :6] * self.betas[-1], axis=axis)
+        ks[6] = y_new5
 
-        y_new4 = y + h * np.sum(ks * self.gammas, axis=axis)
+        y_new4 = y + h * np.dot(self.gammas, ks)
 
         # 4th and 5th order solution
-        new_state4 = self.make_new_state(t=t + h, y=y_new4)
-        new_state5 = self.make_new_state(t=t + h, y=y_new5)
+        new_state4 = self.make_new_state(t=t+h, y=y_new4)
+        new_state5 = self.make_new_state(t=t+h, y=y_new5)
 
         return new_state4, new_state5
 
@@ -268,7 +285,7 @@ class ImplicitEulerMethod(StepFunction):
 
         y_new = root_res.x
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 

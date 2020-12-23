@@ -9,10 +9,10 @@ import absl.logging
 import pandas as pd
 from tabulate import tabulate
 
-from ode_explorer.callbacks import Callback
 from ode_explorer import constants
+from ode_explorer.callbacks import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys
-from ode_explorer.integrators.integrator_loops import integrator_loops
+from ode_explorer.integrators.loop_factory import loop_factory
 from ode_explorer.metrics import Metric
 from ode_explorer.models import ODEModel
 from ode_explorer.stepfunctions import StepFunction
@@ -23,6 +23,11 @@ from ode_explorer.utils.run_utils import write_run_to_disk, get_run_metadata
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(absl.logging.PythonFormatter())
+logger.addHandler(ch)
 
 
 class Integrator:
@@ -67,16 +72,9 @@ class Integrator:
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
-        # flush handlers on construction since it is a global object
-        logger.handlers = []
-
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        ch.setFormatter(absl.logging.PythonFormatter())
         fh = logging.FileHandler(os.path.join(self.log_dir, self.logfile_name))
         fh.setLevel(logging.INFO)
         fh.setFormatter(absl.logging.PythonFormatter())
-        logger.addHandler(ch)
         logger.addHandler(fh)
         logger.info('Creating an Integrator instance.')
 
@@ -176,12 +174,12 @@ class Integrator:
 
         logger.info("Starting integration.")
 
-        integrator_loops.get(loop_type)(run=run,
-                                        step_func=step_func,
-                                        model=model,
-                                        state=state,
-                                        progress_bar=progress_bar,
-                                        **loop_kwargs)
+        loop_factory.get(loop_type)(run=run,
+                                    step_func=step_func,
+                                    model=model,
+                                    state=state,
+                                    progress_bar=progress_bar,
+                                    **loop_kwargs)
 
         logger.info("Finished integration.")
 

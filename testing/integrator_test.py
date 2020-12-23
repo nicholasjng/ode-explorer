@@ -11,7 +11,7 @@ def ode_func(t: float, y: Union[float, np.ndarray], lamb: float = 0.5):
     return - lamb * y
 
 
-def main(argv):
+def main():
     t_0 = 0.0
     y_0 = 1.0  # np.ones(100)
     lamb = 0.5
@@ -41,4 +41,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(None)
+    main()

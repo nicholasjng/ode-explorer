@@ -1,17 +1,16 @@
-import copy
 import logging
 
 import numpy as np
 from scipy.optimize import root, root_scalar
 
-from ode_explorer.models.model import ODEModel
+from ode_explorer.models import ODEModel
 from ode_explorer.types import StateVariable, ModelState
 from ode_explorer.utils.helpers import is_scalar
 
 logger = logging.getLogger(__name__)
 
 
-class StepFunction:
+class SingleStepMethod:
     """
     Base class for all ODE step functions.
     """
@@ -60,7 +59,7 @@ class MultiStepMethod:
     """
 
     def __init__(self,
-                 startup: StepFunction,
+                 startup: SingleStepMethod,
                  b_coeffs: np.ndarray,
                  order: int = 0):
 
@@ -125,10 +124,9 @@ class MultiStepMethod:
         # fill function evaluation cache
         self.f_cache[0] = model(t, y)
 
-        dummy_state = copy.deepcopy(state)
         for i in range(1, self.num_previous):
             startup_state = self.startup.forward(model=model,
-                                                 state=dummy_state,
+                                                 state=state,
                                                  h=h,
                                                  **kwargs)
 
@@ -140,7 +138,7 @@ class MultiStepMethod:
 
     def get_cached_state(self, t: float):
         eps = 1e-15
-        t_cache = np.array(state[0] for state in self.state_cache)
+        t_cache = np.array([state[0] for state in self.state_cache])
         closest_in_cache = np.isclose(t_cache, t)
         idx = np.argmax(closest_in_cache) + 1
         if not any(closest_in_cache):
@@ -156,7 +154,7 @@ class MultiStepMethod:
         raise NotImplementedError
 
 
-class ExplicitRungeKuttaMethod(StepFunction):
+class ExplicitRungeKuttaMethod(SingleStepMethod):
     def __init__(self,
                  alphas: np.ndarray,
                  betas: np.ndarray,
@@ -220,12 +218,12 @@ class ExplicitRungeKuttaMethod(StepFunction):
 
         y_new = y + np.dot(hg, ks)
 
-        new_state = self.make_new_state(t=t+h, y=y_new)
+        new_state = self.make_new_state(t=t + h, y=y_new)
 
         return new_state
 
 
-class ImplicitRungeKuttaMethod(StepFunction):
+class ImplicitRungeKuttaMethod(SingleStepMethod):
     def __init__(self,
                  alphas: np.ndarray,
                  betas: np.ndarray,
@@ -309,11 +307,11 @@ class ImplicitRungeKuttaMethod(StepFunction):
             y_new = y + np.dot(hg, root_res.x.reshape(initial_shape))
 
         else:
-            root_res = root_scalar(F_scalar, x0=y, x1=y+hg[0], args=args, **self.solver_kwargs)
+            root_res = root_scalar(F_scalar, x0=y, x1=y + hg[0], args=args, **self.solver_kwargs)
 
             y_new = y + hg[0] * root_res.root
 
-        new_state = self.make_new_state(t=t+h, y=y_new)
+        new_state = self.make_new_state(t=t + h, y=y_new)
 
         return new_state
 
@@ -324,7 +322,7 @@ class ExplicitMultiStepMethod(MultiStepMethod):
     """
 
     def __init__(self,
-                 startup: StepFunction,
+                 startup: SingleStepMethod,
                  b_coeffs: np.ndarray,
                  order: int = 0):
 
@@ -352,19 +350,18 @@ class ExplicitMultiStepMethod(MultiStepMethod):
         # This branch is curious
         eps = 1e-12
         # TODO: fix this
-        t_cache = np.array(state[0] for state in self.state_cache)
+        t_cache = np.array([state[0] for state in self.state_cache])
         if t + eps < t_cache[-1]:
             return self.get_cached_state(t)
 
         y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
 
-        # shift all states and all f evaluations to the left by 1,
-        # we only need the two previous steps
+        # shift all states and all f evaluations to the left by 1
         self.state_cache.pop(0)
-        self.state_cache.append(self.make_new_state(t=t+h, y=y_new))
+        self.state_cache.append(self.make_new_state(t=t + h, y=y_new))
 
         self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
-        self.f_cache[-1] = model(t+h, y_new)
+        self.f_cache[-1] = model(t + h, y_new)
 
         return self.state_cache[-1]
 
@@ -375,7 +372,7 @@ class ImplicitMultiStepMethod(MultiStepMethod):
     """
 
     def __init__(self,
-                 startup: StepFunction,
+                 startup: SingleStepMethod,
                  b_coeffs: np.ndarray,
                  order: int = 0,
                  **kwargs):
@@ -414,7 +411,7 @@ class ImplicitMultiStepMethod(MultiStepMethod):
             return self.get_cached_state(t)
 
         def F(x: StateVariable) -> StateVariable:
-            return h * (model(t+h, x) + y - np.dot(self.b_coeffs, self.f_cache)) - x
+            return h * (model(t + h, x) + y - np.dot(self.b_coeffs, self.f_cache)) - x
 
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
@@ -427,11 +424,10 @@ class ImplicitMultiStepMethod(MultiStepMethod):
         y_new = root_res.x
 
         # shift all states and all f evaluations to the left by 1,
-        # we only need the two previous steps
         self.state_cache.pop(0)
-        self.state_cache.append(self.make_new_state(t=t+h, y=y_new))
+        self.state_cache.append(self.make_new_state(t=t + h, y=y_new))
 
         self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
-        self.f_cache[-1] = model(t+h, y_new)
+        self.f_cache[-1] = model(t + h, y_new)
 
         return self.state_cache[-1]

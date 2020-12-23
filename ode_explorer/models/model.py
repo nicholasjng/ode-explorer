@@ -1,12 +1,15 @@
-from typing import Dict, Any, Text, List
+from typing import Dict, Any, Text, List, Callable
 
 from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.models import messages
-from ode_explorer.models.base_model import BaseModel
+from ode_explorer.models import BaseModel
 from ode_explorer.types import ModelState, StateVariable
-from ode_explorer.types import ODEFunction
 from ode_explorer.utils.helpers import is_scalar, infer_variable_names
 from ode_explorer.utils.import_utils import import_func_from_module
+
+AdditionalArgs = Any
+
+ODEFunction = Callable[[StateVariable, StateVariable, AdditionalArgs], StateVariable]
 
 
 class ODEModel(BaseModel):

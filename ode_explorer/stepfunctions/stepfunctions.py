@@ -3,8 +3,8 @@ from typing import Tuple
 import numpy as np
 from scipy.optimize import root, root_scalar
 
-from ode_explorer.models.model import ODEModel
-from ode_explorer.stepfunctions.templates import StepFunction, ExplicitMultiStepMethod
+from ode_explorer.models import ODEModel
+from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
 
@@ -17,7 +17,7 @@ __all__ = ["EulerMethod",
            "AdamsBashforth2"]
 
 
-class EulerMethod(StepFunction):
+class EulerMethod(SingleStepMethod):
     """
     Euler method for ODE integration.
     """
@@ -40,7 +40,7 @@ class EulerMethod(StepFunction):
         return new_state
 
 
-class HeunMethod(StepFunction):
+class HeunMethod(SingleStepMethod):
     """
     Heun method for ODE integration.
     """
@@ -75,7 +75,7 @@ class HeunMethod(StepFunction):
         return new_state
 
 
-class RungeKutta4(StepFunction):
+class RungeKutta4(SingleStepMethod):
     """
     Classic Runge Kutta of order 4 for ODE integration.
     """
@@ -117,7 +117,7 @@ class RungeKutta4(StepFunction):
         return new_state
 
 
-class DOPRI5(StepFunction):
+class DOPRI5(SingleStepMethod):
     """
     Dormand-Prince method for explicit ODE integration. This method returns a
     dict with an approximation of order 5 in the step size.
@@ -171,7 +171,7 @@ class DOPRI5(StepFunction):
         return new_state
 
 
-class DOPRI45(StepFunction):
+class DOPRI45(SingleStepMethod):
     """
     Dormand-Prince method for explicit ODE integration. This method returns a
     dict with two y values, one accurate of order 4 and the other of order 5
@@ -233,7 +233,7 @@ class DOPRI45(StepFunction):
         return new_state4, new_state5
 
 
-class ImplicitEulerMethod(StepFunction):
+class ImplicitEulerMethod(SingleStepMethod):
     """
     Implicit Euler Method for ODE solving.
     """
@@ -285,52 +285,9 @@ class AdamsBashforth2(ExplicitMultiStepMethod):
     Adams-Bashforth Method of order 2 for ODE solving.
     """
 
-    def __init__(self, startup: StepFunction):
+    def __init__(self, startup: SingleStepMethod):
 
         b_coeffs = np.array([1.5, -0.5])
         super(AdamsBashforth2, self).__init__(order=2,
                                               startup=startup,
                                               b_coeffs=b_coeffs)
-
-    def forward(self,
-                model: ODEModel,
-                state: ModelState,
-                h: float,
-                **kwargs) -> ModelState:
-
-        if not self.ready:
-            # startup calculation to the multi-step method,
-            # fills the y-, t- and f-caches
-            self.perform_startup_calculation(model=model,
-                                             state=state,
-                                             h=h,
-                                             **kwargs)
-
-            new_state = self.make_new_state(t=self.t_cache[0], y=self.y_cache[0])
-
-            return new_state
-
-        t, y = self.get_data_from_state(state=state)
-
-        # This branch is curious
-        eps = 1e-12
-        if t + eps < self.t_cache[-1]:
-            t_new, y_new = self.get_cached_values(t)
-
-            new_state = self.make_new_state(t=t_new, y=y_new)
-
-            return new_state
-
-        y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
-
-        # shift all y and all f evaluations to the left by 1,
-        # we only need the two previous steps
-        self.y_cache = np.roll(self.y_cache, shift=-1, axis=0)
-        self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
-
-        self.y_cache[-1] = y_new
-        self.f_cache[-1] = model(t+h, y_new)
-
-        new_state = self.make_new_state(t=t+h, y=y_new)
-
-        return new_state

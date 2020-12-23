@@ -2,13 +2,13 @@ import logging
 from typing import Any, List, Dict, Text
 from tqdm import trange
 
-from ode_explorer.callbacks.callback import Callback
+from ode_explorer.callbacks import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys
 from ode_explorer import defaults
-from ode_explorer.metrics.metric import Metric
-from ode_explorer.models.model import ODEModel
-from ode_explorer.stepfunctions.templates import StepFunction
-from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
+from ode_explorer.metrics import Metric
+from ode_explorer.models import ODEModel
+from ode_explorer.stepfunctions import StepFunction
+from ode_explorer.stepsize_control import StepSizeController
 from ode_explorer.types import ModelState
 
 __all__ = ["constant_h_loop", "dynamic_h_loop", "integrator_loops"]

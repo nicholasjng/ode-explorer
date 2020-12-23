@@ -9,14 +9,14 @@ import absl.logging
 import pandas as pd
 from tabulate import tabulate
 
-from ode_explorer.callbacks.callback import Callback
+from ode_explorer.callbacks import Callback
 from ode_explorer import constants
 from ode_explorer.constants import RunKeys, RunConfigKeys
 from ode_explorer.integrators.integrator_loops import integrator_loops
-from ode_explorer.metrics.metric import Metric
-from ode_explorer.models.model import ODEModel
-from ode_explorer.stepfunctions.templates import StepFunction
-from ode_explorer.stepsize_control.stepsizecontroller import StepSizeController
+from ode_explorer.metrics import Metric
+from ode_explorer.models import ODEModel
+from ode_explorer.stepfunctions import StepFunction
+from ode_explorer.stepsize_control import StepSizeController
 from ode_explorer.types import ModelState
 from ode_explorer.utils.data_utils import convert_to_dict
 from ode_explorer.utils.run_utils import write_run_to_disk, get_run_metadata

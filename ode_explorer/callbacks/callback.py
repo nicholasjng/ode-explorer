@@ -3,7 +3,7 @@ from typing import Dict, Text, Any
 
 import numpy as np
 
-from ode_explorer.models.model import ODEModel
+from ode_explorer.models import ODEModel
 from ode_explorer.types import ModelState
 
 logger = logging.getLogger(__name__)

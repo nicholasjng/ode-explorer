@@ -21,24 +21,22 @@ class StepFunction:
         self.order = order
         self.model_dim = 0
         self.num_stages = 0
-        self.axis = None
 
     def _adjust_dims(self, y: StateVariable):
         scalar_ode = is_scalar(y)
 
         if scalar_ode:
-            model_dim, axis = 1, None
+            model_dim = 1
             shape = (self.num_stages,)
         else:
-            model_dim, axis = len(y), 0
+            model_dim = len(y)
             shape = (self.num_stages, model_dim)
 
         self.model_dim = model_dim
-        self.axis = axis
         self.ks = np.zeros(shape=shape)
 
     def _get_shape(self, y: StateVariable):
-        return (self.num_stages,) if is_scalar(y) else (len(y), self.num_stages)
+        return (self.num_stages,) if is_scalar(y) else (self.num_stages, len(y))
 
     @staticmethod
     def get_data_from_state(state: ModelState):
@@ -51,6 +49,108 @@ class StepFunction:
     def forward(self,
                 model: ODEModel,
                 state_dict: ModelState,
+                h: float,
+                **kwargs) -> ModelState:
+        raise NotImplementedError
+
+
+class MultiStepMethod:
+    """
+    Base class for explicit multi-step ODE solving methods.
+    """
+
+    def __init__(self,
+                 startup: StepFunction,
+                 b_coeffs: np.ndarray,
+                 order: int = 0):
+
+        self.order = order
+
+        # startup calculation variables, only for multi-step methods
+        self.ready = False
+        self.startup = startup
+
+        # multi-step method variables
+        self.a_coeffs = np.array([1.0])  # unused
+        self.b_coeffs = b_coeffs
+
+        self.num_previous = len(b_coeffs)
+        # side cache for additional steps
+        self.state_cache = [tuple()] * self.num_previous
+        self.f_cache = np.zeros(self.num_previous)
+
+    @staticmethod
+    def get_data_from_state(state: ModelState):
+        return state
+
+    @staticmethod
+    def make_new_state(t: StateVariable, y: StateVariable) -> ModelState:
+        return t, y
+
+    def _adjust_dims(self, y: StateVariable):
+        scalar_ode = is_scalar(y)
+
+        if scalar_ode:
+            model_dim = 1
+            shape = (self.num_previous,)
+        else:
+            model_dim = len(y)
+            shape = (self.num_previous, model_dim)
+
+        self.model_dim = model_dim
+        self.f_cache = np.zeros(shape=shape)
+
+    def _get_shape(self, y: StateVariable):
+        return (self.num_previous,) if is_scalar(y) else (len(y), self.num_previous)
+
+    def reset(self):
+        # Resets the run so that next time the step function is called,
+        # new startup values will be calculated with the saved startup step
+        # function. Useful if the step function is supposed to be reused in
+        # multiple non-consecutive runs.
+        self.ready = False
+
+    def perform_startup_calculation(self,
+                                    model: ODEModel,
+                                    state: ModelState,
+                                    h: float,
+                                    **kwargs):
+
+        t, y = self.get_data_from_state(state=state)
+
+        if self._get_shape(y) != self.f_cache.shape:
+            self._adjust_dims(y)
+
+        self.state_cache[0] = state
+        # fill function evaluation cache
+        self.f_cache[0] = model(t, y)
+
+        dummy_state = copy.deepcopy(state)
+        for i in range(1, self.num_previous):
+            startup_state = self.startup.forward(model=model,
+                                                 state=dummy_state,
+                                                 h=h,
+                                                 **kwargs)
+
+            self.state_cache[i] = startup_state
+            t1, y1 = self.get_data_from_state(state=startup_state)
+            self.f_cache[i] = model(t1, y1)
+
+        self.ready = True
+
+    def get_cached_state(self, t: float):
+        eps = 1e-15
+        t_cache = np.array(state[0] for state in self.state_cache)
+        closest_in_cache = np.isclose(t_cache, t)
+        idx = np.argmax(closest_in_cache) + 1
+        if not any(closest_in_cache):
+            idx = np.argmax(t_cache > t + eps)
+
+        return self.state_cache[idx]
+
+    def forward(self,
+                model: ODEModel,
+                state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
         raise NotImplementedError
@@ -216,84 +316,25 @@ class ImplicitRungeKuttaMethod(StepFunction):
         return new_state
 
 
-class ExplicitMultiStepMethod(StepFunction):
+class ExplicitMultiStepMethod(MultiStepMethod):
     """
-        Adams-Bashforth Method of order 2 for ODE solving.
-        """
+    Base class for explicit multi-step ODE solving methods.
+    """
 
     def __init__(self,
                  startup: StepFunction,
                  b_coeffs: np.ndarray,
                  order: int = 0):
 
-        super(ExplicitMultiStepMethod, self).__init__(order=order)
-
-        # startup calculation variables, only for multi-step methods
-        self.ready = False
-        self.startup = startup
-
-        # multi-step method variables
-        self.a_coeffs = np.array([1.0])  # unused
-        self.b_coeffs = b_coeffs
-
-        self.lookback = len(b_coeffs)
-        # side cache for additional steps
-        self.y_cache = np.ones((1, self.lookback))
-        self.t_cache = np.zeros(self.lookback)
-        self.f_cache = np.zeros_like(self.y_cache)
-
-    def reset(self):
-        # Resets the run so that next time the step function is called,
-        # new startup values will be calculated with the saved startup step
-        # function. Useful if the step function is supposed to be reused in
-        # multiple non-consecutive runs.
-        self.ready = False
-
-    def perform_startup_calculation(self,
-                                    model: ODEModel,
-                                    state: ModelState,
-                                    h: float,
-                                    **kwargs):
-
-        t, y = self.get_data_from_state(state=state)
-
-        if not is_scalar(y) and len(y) != self.y_cache.shape[0]:
-            self.y_cache = np.zeros((len(y), self.lookback))
-
-        self.t_cache[0], self.y_cache[:, 0] = t, y
-        # fill function evaluation cache
-        self.f_cache[:, 0] = model(t, y)
-
-        dummy_state = copy.deepcopy(state)
-        for i in range(1, self.lookback):
-            startup_state = self.startup.forward(model=model,
-                                                 state=dummy_state,
-                                                 h=h,
-                                                 **kwargs)
-
-            t1, y1 = startup_state
-
-            self.t_cache[i], self.y_cache[:, i] = t1, y1
-            self.f_cache[:, i] = model(t1, y1)
-            dummy_state = startup_state
-
-        self.ready = True
-
-    def get_cached_values(self, t: float):
-        eps = 1e-15
-        closest_in_cache = np.isclose(self.t_cache, t)
-        idx = np.argmax(closest_in_cache) + 1
-        if not any(closest_in_cache):
-            idx = np.argmax(self.t_cache > t + eps)
-
-        return self.t_cache[idx], self.y_cache[idx]
+        super(ExplicitMultiStepMethod, self).__init__(startup=startup,
+                                                      b_coeffs=b_coeffs,
+                                                      order=order)
 
     def forward(self,
                 model: ODEModel,
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
-
         if not self.ready:
             # startup calculation to the multi-step method,
             # fills the y-, t- and f-caches
@@ -302,112 +343,47 @@ class ExplicitMultiStepMethod(StepFunction):
                                              h=h,
                                              **kwargs)
 
-            # first cached value
-            y_new = self.y_cache[:, 1]
-
-            new_state = self.make_new_state(t=self.t_cache[1],
-                                            y=y_new)
-
-            return new_state
+            return self.state_cache[0]
 
         t, y = self.get_data_from_state(state=state)
 
         # This branch is curious
         eps = 1e-12
-        if t + eps < self.t_cache[-1]:
-            t_new, y_new = self.get_cached_values(t)
+        # TODO: fix this
+        t_cache = np.array(state[0] for state in self.state_cache)
+        if t + eps < t_cache[-1]:
+            return self.get_cached_state(t)
 
-            new_state = self.make_new_state(t=t_new, y=y_new)
+        y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
 
-            return new_state
-
-        y_new = y + h * np.sum(self.b_coeffs * self.f_cache, axis=1)
-
-        # shift all y and all f evaluations to the left by 1,
+        # shift all states and all f evaluations to the left by 1,
         # we only need the two previous steps
-        self.y_cache = np.roll(self.y_cache, shift=-1, axis=1)
-        self.f_cache = np.roll(self.f_cache, shift=-1, axis=1)
+        self.state_cache.pop(0)
+        self.state_cache.append(self.make_new_state(t=t+h, y=y_new))
 
-        self.y_cache[:, -1] = y_new
-        self.f_cache[:, -1] = model(t + h, y_new)
+        self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
+        self.f_cache[-1] = model(t+h, y_new)
 
-        new_state = self.make_new_state(t=t+h, y=y_new)
-
-        return new_state
+        return self.state_cache[-1]
 
 
-class ImplicitMultiStepMethod(StepFunction):
+class ImplicitMultiStepMethod(MultiStepMethod):
     """
-        Adams-Bashforth Method of order 2 for ODE solving.
-        """
+    Adams-Bashforth Method of order 2 for ODE solving.
+    """
 
     def __init__(self,
                  startup: StepFunction,
                  b_coeffs: np.ndarray,
                  order: int = 0,
                  **kwargs):
-        super(ImplicitMultiStepMethod, self).__init__(order=order)
-        # startup calculation variables, only for multi-step methods
-        self.ready = False
-        self.startup = startup
 
-        # multi-step method variables
-        self.a_coeffs = np.array([1.0])  # unused
-        self.b_coeffs = b_coeffs
-
-        self.lookback = len(b_coeffs)
-        # side cache for additional steps
-        self.y_cache = np.ones((1, self.lookback))
-        self.t_cache = np.zeros(self.lookback)
-        self.f_cache = np.zeros_like(self.y_cache)
+        super(ImplicitMultiStepMethod, self).__init__(startup=startup,
+                                                      b_coeffs=b_coeffs,
+                                                      order=order)
 
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
-
-    def reset(self):
-        # Resets the run so that next time the step function is called,
-        # new startup values will be calculated with the saved startup step
-        # function. Useful if the step function is supposed to be reused in
-        # multiple non-consecutive runs.
-        self.ready = False
-
-    def perform_startup_calculation(self,
-                                    model: ODEModel,
-                                    state: ModelState,
-                                    h: float,
-                                    **kwargs):
-
-        t, y = self.get_data_from_state(state=state)
-
-        if not is_scalar(y) and len(y) != self.y_cache.shape[0]:
-            self.y_cache = np.zeros((len(y), self.lookback))
-
-        self.t_cache[0], self.y_cache[:, 0] = t, y
-        # fill function evaluation cache
-        self.f_cache[:, 0] = model(t, y)
-
-        dummy_state = copy.deepcopy(state)
-        for i in range(1, self.lookback):
-            startup_state = self.startup.forward(model=model,
-                                                 state=dummy_state,
-                                                 h=h, **kwargs)
-
-            t1, y1 = startup_state
-
-            self.t_cache[i], self.y_cache[:, i] = t1, y1
-            self.f_cache[:, i] = model(t1, y1)
-            dummy_state = startup_state
-
-        self.ready = True
-
-    def get_cached_values(self, t: float):
-        eps = 1e-15
-        closest_in_cache = np.isclose(self.t_cache, t)
-        idx = np.argmax(closest_in_cache) + 1
-        if not any(closest_in_cache):
-            idx = np.argmax(self.t_cache > t + eps)
-
-        return self.t_cache[idx], self.y_cache[idx]
 
     def forward(self,
                 model: ODEModel,
@@ -417,33 +393,26 @@ class ImplicitMultiStepMethod(StepFunction):
 
         if not self.ready:
             # startup calculation to the multi-step method,
-            # fills the y-, t- and f-caches
+            # fills the state and f-caches
             self.perform_startup_calculation(model=model,
                                              state=state,
                                              h=h,
                                              **kwargs)
 
             # first cached value
-            y_new = self.y_cache[:, 1]
+            return self.state_cache[0]
 
-            new_state = self.make_new_state(t=self.t_cache[1], y=y_new)
-
-            return new_state
-
-        t, y = state
+        t, y = self.get_data_from_state(state=state)
 
         # This branch is curious
         eps = 1e-12
-        if t + eps < self.t_cache[-1]:
-            t_new, y_new = self.get_cached_values(t)
-
-            new_state = self.make_new_state(t=t_new, y=y_new)
-
-            return new_state
+        # TODO: fix this
+        t_cache = np.array(state[0] for state in self.state_cache)
+        if t + eps < t_cache[-1]:
+            return self.get_cached_state(t)
 
         def F(x: StateVariable) -> StateVariable:
-            return h * model(t + h, x) + y - \
-                   h * np.sum(self.b_coeffs * self.f_cache, axis=1) - x
+            return h * (model(t+h, x) + y - np.dot(self.b_coeffs, self.f_cache)) - x
 
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
@@ -451,18 +420,16 @@ class ImplicitMultiStepMethod(StepFunction):
             args = ()
 
         # TODO: Retry here in case of convergence failure?
-        root_res = root(F, x0=self.f_cache[:, -1], args=args, **self.solver_kwargs)
+        root_res = root(F, x0=self.f_cache[-1], args=args, **self.solver_kwargs)
 
         y_new = root_res.x
 
-        # shift all y and all f evaluations to the left by 1,
+        # shift all states and all f evaluations to the left by 1,
         # we only need the two previous steps
-        self.y_cache = np.roll(self.y_cache, shift=-1, axis=1)
-        self.f_cache = np.roll(self.f_cache, shift=-1, axis=1)
+        self.state_cache.pop(0)
+        self.state_cache.append(self.make_new_state(t=t+h, y=y_new))
 
-        self.y_cache[:, -1] = y_new
-        self.f_cache[:, -1] = model(t + h, y_new)
+        self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
+        self.f_cache[-1] = model(t+h, y_new)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
-
-        return new_state
+        return self.state_cache[-1]

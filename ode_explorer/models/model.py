@@ -18,9 +18,9 @@ class ODEModel(BaseModel):
     """
 
     def __init__(self,
+                 ode_fn: ODEFunction = None,
                  module_path: Text = None,
                  ode_fn_name: Text = None,
-                 ode_fn: ODEFunction = None,
                  fn_args: Dict[Text, Any] = None,
                  dim_names: List[Text] = None):
 

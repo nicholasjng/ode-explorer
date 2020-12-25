@@ -11,9 +11,9 @@ def is_scalar(y):
 
 
 def infer_variable_names(ode_fn: Callable):
-    ode_argspec = inspect.getfullargspec(func=ode_fn)
+    ode_spec = inspect.getfullargspec(func=ode_fn)
 
-    args = ode_argspec.args
+    args = ode_spec.args
 
     num_args, arg_set = len(args), set(args)
 
@@ -25,7 +25,7 @@ def infer_variable_names(ode_fn: Callable):
         return hamiltonian_rhs
     else:
         # try to infer the variable names as those without defaults
-        num_defaults = len(ode_argspec.defaults)
+        num_defaults = len(ode_spec.defaults)
 
         if num_args >= num_defaults + 2:
             return args[:-num_defaults]

@@ -23,5 +23,6 @@ venv
 /demo/cython_test.ipynb
 
 # cython
+build
 *.c
 *.so

@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 from scipy.optimize import root, root_scalar
 
-from ode_explorer.models import ODEModel
+from ode_explorer.models import ODEModel, HamiltonianSystem
 from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
@@ -291,3 +291,36 @@ class AdamsBashforth2(ExplicitMultiStepMethod):
         super(AdamsBashforth2, self).__init__(order=2,
                                               startup=startup,
                                               b_coeffs=b_coeffs)
+
+
+class EulerA(SingleStepMethod):
+    """
+    EulerA method for Hamiltonian Systems integration.
+    """
+
+    def __init__(self):
+        super(EulerA, self).__init__()
+
+    @staticmethod
+    def make_new_state(t: StateVariable, *state_vectors) -> ModelState:
+        q, p = state_vectors
+        return t, q, p
+
+    def forward(self,
+                hamiltonian: HamiltonianSystem,
+                state: ModelState,
+                h: float,
+                **kwargs) -> ModelState:
+
+        t, q, p = self.get_data_from_state(state=state)
+
+        if not hamiltonian.is_separable:
+            raise ValueError("EulerA for non-separable Hamiltonians "
+                             "is not implemented yet.")
+
+        q_new = q + h * hamiltonian.p_derivative(t, p)
+        p_new = p - h * hamiltonian.q_derivative(t, q_new)
+
+        new_state = self.make_new_state(t+h, q_new, p_new)
+
+        return new_state

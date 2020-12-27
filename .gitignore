@@ -20,3 +20,4 @@ venv
 # default result and log directories
 **/results
 **/logs
+/demo/cython_test.ipynb

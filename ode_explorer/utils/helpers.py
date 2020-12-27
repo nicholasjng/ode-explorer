@@ -10,8 +10,8 @@ def is_scalar(y):
     return not hasattr(y, "__len__")
 
 
-def infer_variable_names(ode_fn: Callable):
-    ode_spec = inspect.getfullargspec(func=ode_fn)
+def infer_variable_names(rhs: Callable):
+    ode_spec = inspect.getfullargspec(func=rhs)
 
     args = ode_spec.args
 
@@ -29,3 +29,20 @@ def infer_variable_names(ode_fn: Callable):
 
         if num_args >= num_defaults + 2:
             return args[:-num_defaults]
+
+
+def infer_separability(q_derivative: Callable,
+                       p_derivative: Callable) -> bool:
+
+    is_separable = False
+
+    # h_set = set(infer_variable_names(hamiltonian))
+    q_set = set(infer_variable_names(q_derivative))
+    p_set = set(infer_variable_names(p_derivative))
+
+    # TODO: Devise more / better checks than just derivative
+    #  signatures
+    if "q" not in p_set and "p" not in q_set:
+        is_separable = True
+
+    return is_separable

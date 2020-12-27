@@ -1,5 +1,6 @@
 from ode_explorer.stepfunctions.stepfunctions import (
     EulerMethod,
+    EulerCython,
     HeunMethod,
     RungeKutta4,
     DOPRI5,

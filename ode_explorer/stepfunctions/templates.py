@@ -215,22 +215,15 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
         if self._get_shape(y) != self.ks.shape:
             self._adjust_dims(y)
 
-        ha = self.alphas * h
-        hg = self.gammas * h
-        hb = self.betas * h
-        ks = self.ks
-
-        ks[0] = model(t, y)
+        self.ks[0] = model(t, y)
 
         for i in range(1, self.num_stages):
             # first row of betas is a zero row because it is an explicit RK
-            ks[i] = model(t + ha[i], y + np.dot(hb[i], ks))
+            self.ks[i] = model(t + h * self.alphas[i], y + h * np.dot(self.betas[i], self.ks))
 
-        y_new = y + np.dot(hg, ks)
+        y_new = y + h * np.dot(self.gammas, self.ks)
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
-
-        return new_state
+        return self.make_new_state(t=t+h, y=y_new)
 
 
 class ImplicitRungeKuttaMethod(SingleStepMethod):
@@ -283,18 +276,13 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         if self._get_shape(y) != self.ks.shape:
             self._adjust_dims(y)
 
-        ha = self.alphas * h
-        hb = self.betas * h
-        hg = self.gammas * h
-        ks = self.ks
-
-        initial_shape = ks.shape
+        initial_shape = self.ks.shape
         shape_prod = np.prod(initial_shape)
 
         def F(x: np.ndarray) -> np.ndarray:
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = np.concatenate([model(t + ha[i], y + np.dot(hb[i],
-                                           x.reshape(initial_shape)))
+            model_stack = np.concatenate([model(t + h * self.alphas[i],
+                                                y + h * np.dot(self.betas[i], x.reshape(initial_shape)))
                                          for i in range(self.num_stages)])
 
             return model_stack - x
@@ -302,7 +290,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         # modified function in case of using Implicit Euler method or
         # equivalents on a scalar ODE
         def F_scalar(x: float) -> float:
-            return model(t + ha[0], y + hb[0] * x) - x
+            return model(t + h * self.alphas[0], y + h * self.betas[0] * x) - x
 
         # sort the kwargs before putting them into the tuple passed to root
         if kwargs:
@@ -312,18 +300,17 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
         if shape_prod != 1:
             # TODO: Retry here in case of convergence failure?
-            root_res = root(F, x0=ks.reshape((shape_prod,)), args=args, **self.solver_kwargs)
+            root_res = root(F, x0=self.ks.reshape((shape_prod,)), args=args, **self.solver_kwargs)
 
-            y_new = y + np.dot(hg, root_res.x.reshape(initial_shape))
+            y_new = y + h * np.dot(self.gammas, root_res.x.reshape(initial_shape))
 
         else:
-            root_res = root_scalar(F_scalar, x0=y, x1=y + hg[0], args=args, **self.solver_kwargs)
+            root_res = root_scalar(F_scalar, x0=y, x1=y + h * self.gammas[0],
+                                   args=args, **self.solver_kwargs)
 
-            y_new = y + hg[0] * root_res.root
+            y_new = y + h * self.gammas[0] * root_res.root
 
-        new_state = self.make_new_state(t=t+h, y=y_new)
-
-        return new_state
+        return self.make_new_state(t=t+h, y=y_new)
 
 
 class ExplicitMultiStepMethod(MultiStepMethod):

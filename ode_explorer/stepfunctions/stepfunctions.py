@@ -299,7 +299,7 @@ class EulerA(SingleStepMethod):
     """
 
     def __init__(self):
-        super(EulerA, self).__init__()
+        super(EulerA, self).__init__(order=1)
 
     @staticmethod
     def make_new_state(t: StateVariable, *state_vectors) -> ModelState:
@@ -315,11 +315,44 @@ class EulerA(SingleStepMethod):
         t, q, p = self.get_data_from_state(state=state)
 
         if not hamiltonian.is_separable:
-            raise ValueError("EulerA for non-separable Hamiltonians "
+            raise ValueError("EulerA for a non-separable Hamiltonian "
                              "is not implemented yet.")
 
         q_new = q + h * hamiltonian.p_derivative(t, p)
         p_new = p - h * hamiltonian.q_derivative(t, q_new)
+
+        new_state = self.make_new_state(t+h, q_new, p_new)
+
+        return new_state
+
+
+class EulerB(SingleStepMethod):
+    """
+    EulerA method for Hamiltonian Systems integration.
+    """
+
+    def __init__(self):
+        super(EulerB, self).__init__(order=1)
+
+    @staticmethod
+    def make_new_state(t: StateVariable, *state_vectors) -> ModelState:
+        q, p = state_vectors
+        return t, q, p
+
+    def forward(self,
+                hamiltonian: HamiltonianSystem,
+                state: ModelState,
+                h: float,
+                **kwargs) -> ModelState:
+
+        t, q, p = self.get_data_from_state(state=state)
+
+        if not hamiltonian.is_separable:
+            raise ValueError("EulerB for a non-separable Hamiltonian "
+                             "is not implemented yet.")
+
+        p_new = p - h * hamiltonian.q_derivative(t, q)
+        q_new = q + h * hamiltonian.p_derivative(t, p_new)
 
         new_state = self.make_new_state(t+h, q_new, p_new)
 

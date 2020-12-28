@@ -29,7 +29,8 @@ def main():
     initial_state = (t_0, y_0)
 
     integrator.integrate_const(model=model,
-                               step_func=AdamsBashforth2(startup=EulerMethod()),
+                               step_func=BDF2(startup=RungeKutta4()),
+                               # step_func=AdamsBashforth2(startup=EulerMethod()),
                                initial_state=initial_state,
                                h=0.001,
                                max_steps=10000,

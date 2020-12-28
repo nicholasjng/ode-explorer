@@ -6,7 +6,8 @@ from ode_explorer.stepfunctions.stepfunctions import (
     DOPRI5,
     DOPRI45,
     ImplicitEulerMethod,
-    AdamsBashforth2
+    AdamsBashforth2,
+    BDF2
 )
 
 from ode_explorer.stepfunctions.templates import (

@@ -4,7 +4,7 @@ import numpy as np
 from scipy.optimize import root, root_scalar
 
 from ode_explorer.models import ODEModel
-from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod
+from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod, ImplicitMultiStepMethod
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
 from ode_explorer.stepfunctions.stepfunc_impl import euler_scalar, euler_ndim
@@ -16,7 +16,8 @@ __all__ = ["EulerMethod",
            "DOPRI5",
            "DOPRI45",
            "ImplicitEulerMethod",
-           "AdamsBashforth2"]
+           "AdamsBashforth2",
+           "BDF2"]
 
 
 class EulerMethod(SingleStepMethod):
@@ -315,7 +316,24 @@ class AdamsBashforth2(ExplicitMultiStepMethod):
 
     def __init__(self, startup: SingleStepMethod):
 
+        a_coeffs = np.ones(1)
         b_coeffs = np.array([1.5, -0.5])
         super(AdamsBashforth2, self).__init__(order=2,
                                               startup=startup,
+                                              a_coeffs=a_coeffs,
                                               b_coeffs=b_coeffs)
+
+
+class BDF2(ImplicitMultiStepMethod):
+    """
+    Adams-Bashforth Method of order 2 for ODE solving.
+    """
+
+    def __init__(self, startup: SingleStepMethod):
+
+        a_coeffs = np.array([-4/3, 1/3])
+        b_coeffs = np.array([2/3])
+        super(BDF2, self).__init__(order=2,
+                                   startup=startup,
+                                   a_coeffs=a_coeffs,
+                                   b_coeffs=b_coeffs)

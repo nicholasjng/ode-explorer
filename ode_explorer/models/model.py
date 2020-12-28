@@ -39,7 +39,7 @@ class ODEModel(BaseModel):
         # additional arguments for the function
         self.fn_args = fn_args or {}
 
-        self.variable_names = infer_variable_names(ode_fn=ode_fn)
+        self.variable_names = infer_variable_names(rhs=ode_fn)
         self.dim_names = dim_names or []
 
     def update_args(self, **kwargs):

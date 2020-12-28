@@ -208,13 +208,14 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         ha = self.alphas * h
         hg = self.gammas * h
+        hb = self.betas * h
         ks = self.ks
 
         ks[0] = model(t, y)
 
         for i in range(1, self.num_stages):
             # first row of betas is a zero row because it is an explicit RK
-            ks[i] = model(t + ha[i], y + ha[i] * np.dot(self.betas[i], ks[:i]))
+            ks[i] = model(t + ha[i], y + np.dot(hb[i], ks))
 
         y_new = y + np.dot(hg, ks)
 
@@ -284,7 +285,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         def F(x: np.ndarray) -> np.ndarray:
 
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = np.hstack(model(t + ha[i], x.reshape(initial_shape).dot(hb[i]))
+            model_stack = np.hstack(model(t + ha[i], np.dot(hb[i], x.reshape(initial_shape)))
                                     for i in range(self.num_stages))
 
             return model_stack - x

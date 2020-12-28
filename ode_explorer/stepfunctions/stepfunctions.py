@@ -4,17 +4,21 @@ import numpy as np
 from scipy.optimize import root, root_scalar
 
 from ode_explorer.models import ODEModel, HamiltonianSystem
-from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod
+from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod, ImplicitMultiStepMethod
+
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
+from ode_explorer.stepfunctions.stepfunc_impl import euler_scalar, euler_ndim
 
 __all__ = ["EulerMethod",
+           "EulerCython",
            "HeunMethod",
            "RungeKutta4",
            "DOPRI5",
            "DOPRI45",
            "ImplicitEulerMethod",
-           "AdamsBashforth2"]
+           "AdamsBashforth2",
+           "BDF2"]
 
 
 class EulerMethod(SingleStepMethod):
@@ -34,6 +38,32 @@ class EulerMethod(SingleStepMethod):
         t, y = self.get_data_from_state(state=state)
 
         y_new = y + h * model(t, y)
+
+        new_state = self.make_new_state(t=t+h, y=y_new)
+
+        return new_state
+
+
+class EulerCython(SingleStepMethod):
+    """
+    Euler method for ODE integration.
+    """
+
+    def __init__(self):
+        super(EulerCython, self).__init__()
+
+    def forward(self,
+                model: ODEModel,
+                state: ModelState,
+                h: float,
+                **kwargs) -> ModelState:
+
+        t, y = self.get_data_from_state(state=state)
+
+        if is_scalar(y):
+            y_new = euler_scalar(model.ode_fn, t, y, h, **kwargs)
+        else:
+            y_new = euler_ndim(model.ode_fn, t, y, h, **kwargs)
 
         new_state = self.make_new_state(t=t+h, y=y_new)
 
@@ -191,7 +221,7 @@ class DOPRI45(SingleStepMethod):
                       np.array([3 / 40, 9 / 40]),
                       np.array([44 / 45, -56 / 15, 32 / 9]),
                       np.array([19372 / 6561, -25360 / 2187, 64448 / 6561, -212 / 729]),
-                      np.array([9017 / 3168, 355 / 33, 46732 / 5247, 49 / 176, -5103 / 18656]),
+                      np.array([9017 / 3168, -355 / 33, 46732 / 5247, 49 / 176, -5103 / 18656]),
                       np.array([35 / 384, 0.0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84])]
 
         # First same as last (FSAL) rule
@@ -287,9 +317,11 @@ class AdamsBashforth2(ExplicitMultiStepMethod):
 
     def __init__(self, startup: SingleStepMethod):
 
+        a_coeffs = np.ones(1)
         b_coeffs = np.array([1.5, -0.5])
         super(AdamsBashforth2, self).__init__(order=2,
                                               startup=startup,
+                                              a_coeffs=a_coeffs,
                                               b_coeffs=b_coeffs)
 
 
@@ -357,3 +389,18 @@ class EulerB(SingleStepMethod):
         new_state = self.make_new_state(t+h, q_new, p_new)
 
         return new_state
+
+
+class BDF2(ImplicitMultiStepMethod):
+    """
+    Adams-Bashforth Method of order 2 for ODE solving.
+    """
+
+    def __init__(self, startup: SingleStepMethod):
+
+        a_coeffs = np.array([-4/3, 1/3])
+        b_coeffs = np.array([2/3])
+        super(BDF2, self).__init__(order=2,
+                                   startup=startup,
+                                   a_coeffs=a_coeffs,
+                                   b_coeffs=b_coeffs)

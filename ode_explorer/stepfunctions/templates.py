@@ -60,23 +60,32 @@ class MultiStepMethod:
 
     def __init__(self,
                  startup: SingleStepMethod,
+                 a_coeffs: np.ndarray,
                  b_coeffs: np.ndarray,
-                 order: int = 0):
+                 order: int = 0,
+                 reverse: bool = True):
 
         self.order = order
 
         # startup calculation variables, only for multi-step methods
         self.ready = False
+        self._cache_idx = 1
         self.startup = startup
 
-        # multi-step method variables
-        self.a_coeffs = np.array([1.0])  # unused
-        self.b_coeffs = b_coeffs
+        if reverse:
+            self.a_coeffs = np.flip(a_coeffs)
+            self.b_coeffs = np.flip(b_coeffs)
+        else:
+            self.a_coeffs = a_coeffs
+            self.b_coeffs = b_coeffs
 
-        self.num_previous = len(b_coeffs)
+        # TODO: This is not good
+        self.num_previous = max(len(b_coeffs), len(a_coeffs))
+
         # side cache for additional steps
-        self.state_cache = [tuple()] * self.num_previous
         self.f_cache = np.zeros(self.num_previous)
+        self.t_cache = np.zeros(self.num_previous)
+        self.y_cache = np.zeros(self.num_previous)
 
     @staticmethod
     def get_data_from_state(state: ModelState):
@@ -92,15 +101,20 @@ class MultiStepMethod:
         if scalar_ode:
             model_dim = 1
             shape = (self.num_previous,)
+
         else:
             model_dim = len(y)
             shape = (self.num_previous, model_dim)
 
         self.model_dim = model_dim
         self.f_cache = np.zeros(shape=shape)
+        self.y_cache = np.zeros(shape=shape)
 
     def _get_shape(self, y: StateVariable):
-        return (self.num_previous,) if is_scalar(y) else (len(y), self.num_previous)
+        return (self.num_previous,) if is_scalar(y) else (self.num_previous, len(y))
+
+    def _increment_cache_idx(self):
+        self._cache_idx += 1
 
     def reset(self):
         # Resets the run so that next time the step function is called,
@@ -108,6 +122,7 @@ class MultiStepMethod:
         # function. Useful if the step function is supposed to be reused in
         # multiple non-consecutive runs.
         self.ready = False
+        self._cache_idx = 1
 
     def perform_startup_calculation(self,
                                     model: ODEModel,
@@ -117,12 +132,11 @@ class MultiStepMethod:
 
         t, y = self.get_data_from_state(state=state)
 
-        if self._get_shape(y) != self.f_cache.shape:
+        if self._get_shape(y) != self.y_cache.shape:
             self._adjust_dims(y)
 
-        self.state_cache[0] = state
         # fill function evaluation cache
-        self.f_cache[0] = model(t, y)
+        self.t_cache[0], self.y_cache[0], self.f_cache[0] = t, y, model(t, y)
 
         for i in range(1, self.num_previous):
             startup_state = self.startup.forward(model=model,
@@ -130,21 +144,17 @@ class MultiStepMethod:
                                                  h=h,
                                                  **kwargs)
 
-            self.state_cache[i] = startup_state
-            t1, y1 = self.get_data_from_state(state=startup_state)
-            self.f_cache[i] = model(t1, y1)
+            self.t_cache[i], self.y_cache[i] = startup_state
+            self.f_cache[i] = model(self.t_cache[i], self.y_cache[i])
+            state = startup_state
 
         self.ready = True
+        self._increment_cache_idx()
 
-    def get_cached_state(self, t: float):
-        eps = 1e-15
-        t_cache = np.array([state[0] for state in self.state_cache])
-        closest_in_cache = np.isclose(t_cache, t)
-        idx = np.argmax(closest_in_cache) + 1
-        if not any(closest_in_cache):
-            idx = np.argmax(t_cache > t + eps)
-
-        return self.state_cache[idx]
+    def get_cached_state(self):
+        idx = self._cache_idx
+        self._increment_cache_idx()
+        return self.make_new_state(t=self.t_cache[idx], y=self.y_cache[idx])
 
     def forward(self,
                 model: ODEModel,
@@ -177,8 +187,7 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
                                  gammas: np.ndarray) -> None:
         _error_msg = []
         if len(alphas) != len(gammas):
-            _error_msg.append("Alpha and gamma vectors are "
-                              "not the same length")
+            _error_msg.append("Alpha and gamma vectors are not the same length")
 
         if betas.shape[0] != betas.shape[1]:
             _error_msg.append("Betas must be a quadratic matrix with the same "
@@ -208,13 +217,14 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         ha = self.alphas * h
         hg = self.gammas * h
+        hb = self.betas * h
         ks = self.ks
 
         ks[0] = model(t, y)
 
         for i in range(1, self.num_stages):
             # first row of betas is a zero row because it is an explicit RK
-            ks[i] = model(t + ha[i], y + ha[i] * np.dot(self.betas[i], ks[:i]))
+            ks[i] = model(t + ha[i], y + np.dot(hb[i], ks))
 
         y_new = y + np.dot(hg, ks)
 
@@ -282,10 +292,10 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         shape_prod = np.prod(initial_shape)
 
         def F(x: np.ndarray) -> np.ndarray:
-
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = np.hstack(model(t + ha[i], x.reshape(initial_shape).dot(hb[i]))
-                                    for i in range(self.num_stages))
+            model_stack = np.concatenate([model(t + ha[i], y + np.dot(hb[i],
+                                           x.reshape(initial_shape)))
+                                         for i in range(self.num_stages)])
 
             return model_stack - x
 
@@ -311,7 +321,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
             y_new = y + hg[0] * root_res.root
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 
@@ -323,12 +333,16 @@ class ExplicitMultiStepMethod(MultiStepMethod):
 
     def __init__(self,
                  startup: SingleStepMethod,
+                 a_coeffs: np.ndarray,
                  b_coeffs: np.ndarray,
-                 order: int = 0):
+                 order: int = 0,
+                 reverse: bool = True):
 
         super(ExplicitMultiStepMethod, self).__init__(startup=startup,
+                                                      a_coeffs=a_coeffs,
                                                       b_coeffs=b_coeffs,
-                                                      order=order)
+                                                      order=order,
+                                                      reverse=reverse)
 
     def forward(self,
                 model: ODEModel,
@@ -343,27 +357,19 @@ class ExplicitMultiStepMethod(MultiStepMethod):
                                              h=h,
                                              **kwargs)
 
-            return self.state_cache[0]
+            return self.make_new_state(self.t_cache[1], self.y_cache[1])
 
         t, y = self.get_data_from_state(state=state)
 
-        # This branch is curious
-        eps = 1e-12
-        # TODO: fix this
-        t_cache = np.array([state[0] for state in self.state_cache])
-        if t + eps < t_cache[-1]:
-            return self.get_cached_state(t)
+        if self._cache_idx < self.num_previous:
+            return self.get_cached_state()
 
         y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
 
-        # shift all states and all f evaluations to the left by 1
-        self.state_cache.pop(0)
-        self.state_cache.append(self.make_new_state(t=t + h, y=y_new))
-
         self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
-        self.f_cache[-1] = model(t + h, y_new)
+        self.f_cache[-1] = model(t+h, y_new)
 
-        return self.state_cache[-1]
+        return self.make_new_state(t=t+h, y=y_new)
 
 
 class ImplicitMultiStepMethod(MultiStepMethod):
@@ -373,13 +379,17 @@ class ImplicitMultiStepMethod(MultiStepMethod):
 
     def __init__(self,
                  startup: SingleStepMethod,
+                 a_coeffs: np.ndarray,
                  b_coeffs: np.ndarray,
                  order: int = 0,
+                 reverse: bool = True,
                  **kwargs):
 
         super(ImplicitMultiStepMethod, self).__init__(startup=startup,
+                                                      a_coeffs=a_coeffs,
                                                       b_coeffs=b_coeffs,
-                                                      order=order)
+                                                      order=order,
+                                                      reverse=reverse)
 
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
@@ -399,19 +409,17 @@ class ImplicitMultiStepMethod(MultiStepMethod):
                                              **kwargs)
 
             # first cached value
-            return self.state_cache[0]
+            return self.make_new_state(self.t_cache[1], self.y_cache[1])
+
+        b = self.b_coeffs[-1]
 
         t, y = self.get_data_from_state(state=state)
 
-        # This branch is curious
-        eps = 1e-12
-        # TODO: fix this
-        t_cache = np.array(state[0] for state in self.state_cache)
-        if t + eps < t_cache[-1]:
-            return self.get_cached_state(t)
+        if self._cache_idx < self.num_previous:
+            return self.get_cached_state()
 
         def F(x: StateVariable) -> StateVariable:
-            return h * (model(t + h, x) + y - np.dot(self.b_coeffs, self.f_cache)) - x
+            return x + np.dot(self.a_coeffs, self.y_cache) - h * b * model(t + h, x)
 
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
@@ -419,15 +427,11 @@ class ImplicitMultiStepMethod(MultiStepMethod):
             args = ()
 
         # TODO: Retry here in case of convergence failure?
-        root_res = root(F, x0=self.f_cache[-1], args=args, **self.solver_kwargs)
+        root_res = root(F, x0=y, args=args, **self.solver_kwargs)
 
         y_new = root_res.x
 
-        # shift all states and all f evaluations to the left by 1,
-        self.state_cache.pop(0)
-        self.state_cache.append(self.make_new_state(t=t + h, y=y_new))
+        self.y_cache = np.roll(self.y_cache, shift=-1, axis=0)
+        self.y_cache[-1] = y_new
 
-        self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
-        self.f_cache[-1] = model(t + h, y_new)
-
-        return self.state_cache[-1]
+        return self.make_new_state(t=t+h, y=y_new)

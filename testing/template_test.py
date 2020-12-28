@@ -1,9 +1,9 @@
 import numpy as np
 
 from ode_explorer.stepfunctions import *
+from ode_explorer.stepfunctions import ExplicitRungeKuttaMethod
 from ode_explorer.models import ODEModel
 from ode_explorer.integrators import Integrator
-from ode_explorer.stepsize_control import DOPRI45Controller
 from ode_explorer.metrics import DistanceToSolution
 
 # y_0 = 1.0
@@ -26,11 +26,19 @@ def main():
 
     integrator = Integrator()
 
+    alphas = np.array([0.0, 0.5, 0.5, 1.0])
+    betas = np.array([[0.0, 0.0, 0.0, 0.0],
+                      [0.5, 0.0, 0.0, 0.0],
+                      [0.0, 0.5, 0.0, 0.0],
+                      [0.0, 0.0, 1.0, 0.0]])
+    gammas = np.array([1.0, 2.0, 2.0, 1.0]) / 6
+
+    step2 = ExplicitRungeKuttaMethod(alphas=alphas, betas=betas, gammas=gammas)
+
     initial_state = (t_0, y_0)
 
     integrator.integrate_const(model=model,
-                               step_func=BDF2(startup=RungeKutta4()),
-                               # step_func=AdamsBashforth2(startup=EulerMethod()),
+                               step_func=RungeKutta4(),
                                initial_state=initial_state,
                                h=0.001,
                                max_steps=10000,
@@ -42,15 +50,14 @@ def main():
 
     print(metrics.describe())
 
-    integrator.integrate_dynamically(model=model,
-                                     step_func=DOPRI45(),
-                                     sc=DOPRI45Controller(atol=1e-9),
-                                     initial_state=initial_state,
-                                     initial_h=0.01,
-                                     verbosity=1,
-                                     end=10.0,
-                                     progress_bar=True,
-                                     metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
+    integrator.integrate_const(model=model,
+                               step_func=step2,
+                               initial_state=initial_state,
+                               h=0.001,
+                               max_steps=10000,
+                               verbosity=1,
+                               progress_bar=True,
+                               metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
 
     metrics = integrator.return_metrics(run_id="latest")
 

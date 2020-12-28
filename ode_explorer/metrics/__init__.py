@@ -1,1 +1,4 @@
-from ode_explorer.metrics.metric import Metric
+from ode_explorer.metrics.metric import (
+    Metric,
+    DistanceToSolution
+)

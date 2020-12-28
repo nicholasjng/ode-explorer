@@ -21,3 +21,8 @@ venv
 **/results
 **/logs
 /demo/cython_test.ipynb
+
+# cython
+build
+*.c
+*.so

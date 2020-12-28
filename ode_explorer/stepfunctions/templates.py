@@ -79,6 +79,7 @@ class MultiStepMethod:
             self.a_coeffs = a_coeffs
             self.b_coeffs = b_coeffs
 
+        # TODO: This is not good
         self.num_previous = max(len(b_coeffs), len(a_coeffs))
 
         # side cache for additional steps
@@ -291,10 +292,10 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         shape_prod = np.prod(initial_shape)
 
         def F(x: np.ndarray) -> np.ndarray:
-
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = np.hstack(model(t + ha[i], np.dot(hb[i], x.reshape(initial_shape)))
-                                    for i in range(self.num_stages))
+            model_stack = np.concatenate([model(t + ha[i], y + np.dot(hb[i],
+                                           x.reshape(initial_shape)))
+                                         for i in range(self.num_stages)])
 
             return model_stack - x
 
@@ -320,7 +321,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
             y_new = y + hg[0] * root_res.root
 
-        new_state = self.make_new_state(t=t + h, y=y_new)
+        new_state = self.make_new_state(t=t+h, y=y_new)
 
         return new_state
 

@@ -10,11 +10,30 @@ from ode_explorer.utils.helpers import is_scalar
 __all__ = ["convert_to_dict", "write_result_to_csv"]
 
 
+def initialize_dim_names(variable_names: List[Text], state: ModelState):
+    var_dims = []
+
+    for k, v in zip(variable_names, state):
+        dim = 1 if is_scalar(v) else len(v)
+
+        var_dims.append((k, dim))
+
+    dim_names = []
+    for i, (name, dim) in enumerate(var_dims):
+        if dim == 1:
+            dim_names += [name]
+        else:
+            dim_names += ["{0}_{1}".format(name, i) for i in range(1, dim + 1)]
+
+    return dim_names
+
+
 def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any]):
     output_dict = dict()
 
     variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
-    dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
+    dim_names = model_metadata.get(ModelMetadataKeys.DIM_NAMES,
+                                   initialize_dim_names(variable_names, state))
 
     idx = 0
     for i, name in enumerate(variable_names):

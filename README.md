@@ -48,30 +48,24 @@ where you can add special parameters for your model like reaction constants, dec
 
 Solving ordinary differential equations in the computer happens by numerical integration. A popular method of solving ODEs are the *single-step methods*, which also encompass Runge-Kutta methods among others.
 
-ode-explorer handles numerical integration by exposing an *Integrator* object. It has some internal state that facilitates logging among other things, and exposes two main integration APIs, 
-``integrate_const`` and ``integrate_dynamically``. The former can be used to integrate an ODE using a fixed step size h, while the latter can be equipped with a step size controlling mechanism,
-which chooses a step size based on local error estimates. For more information, check out the [textbook by Hairer, Wanner and Nørsett](https://www.springer.com/de/book/9783540566700).
+ode-explorer handles numerical integration by exposing an *Integrator* object. It has some internal state that facilitates logging among other things, and exposes two main integration APIs, ``integrate_const`` and ``integrate_adaptively``. The former can be used to integrate an ODE using a fixed step size h, while the latter can be equipped with a step size controlling mechanism, which chooses a step size based on local error estimates. For more information, check out the [textbook by Hairer, Wanner and Nørsett](https://www.springer.com/de/book/9783540566700).
 
 **Step functions** are used to advance models in time during numerical integration. These methods usually differ in computational complexity and order of consistency; as a rule of thumb, a more accurate solution requires more computational work (as one might expect).
 
 ode-explorer provides a ``StepFunction`` Interface that is built exactly for this purpose. Adding your own step functions is very simple - it requires only one of the following:
 1. Subclass the ``StepFunction`` base class and override its ``forward`` method to calculate the estimate.
-2. Initialize one of the template classes in ``ode_explorer.templates`` with your chosen arguments.
+2. Initialize one of the template classes in ``ode_explorer.stepfunctions.templates`` with your chosen arguments.
 
-Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multistep methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.templates``. 
+Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multistep methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.stepfunctions.templates``. 
 
 
 ## Callbacks and metrics
 
 The main strong point / value of this library is that you can heavily customize your experiments to your liking. Two of the main instruments for this are callbacks and metrics.
 
-*Callbacks* are designed to hook into the control flow of the numerical integration; ode-explorer exposes a ``Callback`` interface which is basically a callable with state. 
-This concept may be familiar to users of ML libraries of scikit-learn and Tensorflow, which were the main inspiration behind this.
-You can do many things with callbacks, like logging, broadcasting your solver's intermittent results via websocket, check for NaN values - this is where your creativity comes in!
+*Callbacks* are designed to hook into the control flow of the numerical integration; ode-explorer exposes a ``Callback`` interface which is basically a callable with state. This concept may be familiar to users of ML libraries of scikit-learn and Tensorflow, which were the main inspiration behind this. You can do many things with callbacks, like logging, broadcasting your solver's intermittent results via websocket, check for NaN values - this is where your creativity comes in!
 
-The same applies to *metrics* (with the corresponding ``Metric`` interface), which are also callables that can be used to compute quantities of interest after each step.
-Possible use cases include distance to a known ODE solution for sanity checking a step function, logging accepted and rejected steps in a step size control setting, or tracking of a first integral in a Hamiltonian system -
-again, the possibilities are really vast, so try it out!
+The same applies to *metrics* (with the corresponding ``Metric`` interface), which are also callables that can be used to compute quantities of interest after each step. Possible use cases include distance to a known ODE solution for sanity checking a step function, logging accepted and rejected steps in a step size control setting, or tracking of a first integral in a Hamiltonian system - again, the possibilities are really vast, so try it out!
 
 ## Step size control
 
@@ -93,9 +87,8 @@ Any numerical software should be tested extensively - not just for exception saf
 
 # Planned features [WIP]
 
-Some more feature plans that are in the mix for this library (again, feel free to request more features):
+Some more feature plans that are in the mix for this library:
 
-* Hamiltonian Systems
 * Visualizations, Dashboard
 * GPU support with JAX / XLA
 * More builtin callbacks / metrics

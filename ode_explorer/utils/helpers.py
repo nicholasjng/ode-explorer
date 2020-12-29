@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable
+from typing import Callable, List, Text
 
 from ode_explorer.defaults import standard_rhs, hamiltonian_rhs
 
@@ -7,10 +7,30 @@ __all__ = ["is_scalar", "infer_variable_names", "infer_separability"]
 
 
 def is_scalar(y):
+    """
+    Infer whether an ODE is scalar.
+
+    Args:
+        y: State vector.
+
+    Returns:
+        A boolean, True if the ODE state vector is scalar and False otherwise.
+    """
+
     return not hasattr(y, "__len__")
 
 
-def infer_variable_names(rhs: Callable):
+def infer_variable_names(rhs: Callable) -> List[Text]:
+    """
+    Infer the variable names from the right-hand side function of an ODE model.
+
+    Args:
+        rhs: Right-hand side to infer variable names from.
+
+    Returns:
+        A list containing the ODE variable names.
+    """
+
     ode_spec = inspect.getfullargspec(func=rhs)
 
     args = ode_spec.args
@@ -31,16 +51,24 @@ def infer_variable_names(rhs: Callable):
             return args[:-num_defaults]
 
 
-def infer_separability(q_derivative: Callable,
-                       p_derivative: Callable) -> bool:
+def infer_separability(q_derivative: Callable, p_derivative: Callable) -> bool:
+    """
+    Infer whether a Hamiltonian is separable.
+
+    Args:
+        q_derivative: Function returning the (vector-valued) q-derivative of the Hamiltonian.
+        p_derivative: Function returning the (vector-valued) p-derivative of the Hamiltonian.
+
+    Returns:
+        A boolean indicating whether the Hamiltonian is separable based on its derivatives or not.
+    """
+
     is_separable = False
 
-    # h_set = set(infer_variable_names(hamiltonian))
     q_set = set(infer_variable_names(q_derivative))
     p_set = set(infer_variable_names(p_derivative))
 
-    # TODO: Devise more / better checks than just derivative
-    #  signatures
+    # TODO: Devise more / better checks than just derivative signatures
     if "q" not in p_set and "p" not in q_set:
         is_separable = True
 

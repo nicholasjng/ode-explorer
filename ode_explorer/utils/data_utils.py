@@ -11,6 +11,19 @@ __all__ = ["initialize_dim_names", "convert_to_dict", "write_result_to_csv"]
 
 
 def initialize_dim_names(variable_names: List[Text], state: ModelState):
+    """
+    Initialize the dimension names for saving data to disk using pandas.
+    The dimension names will be used as column headers in the resulting pd.DataFrame.
+    Useful if you plan to label and plot your data automatically.
+
+    Args:
+        variable_names: Names of the state variables in the ODE integration run.
+        state: Sample state from which to infer the dimension names.
+
+    Returns:
+        A list of dimension names.
+    """
+
     var_dims = []
 
     for k, v in zip(variable_names, state):
@@ -28,12 +41,22 @@ def initialize_dim_names(variable_names: List[Text], state: ModelState):
     return dim_names
 
 
-def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any]):
+def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any], dim_names: List[Text]):
+    """
+    Convert a state in a run result object to a Dict for use in a pd.DataFrame constructor.
+
+    Args:
+        state: ODE state obtained in the numerical integration run.
+        model_metadata: Model metadata saved in the run.
+        dim_names: Names of dimensions in the ODE.
+
+    Returns:
+        A dict containing the dimension names as keys and the corresponding scalar data as values.
+    """
+
     output_dict = dict()
 
     variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
-    dim_names = model_metadata.get(ModelMetadataKeys.DIM_NAMES,
-                                   initialize_dim_names(variable_names, state))
 
     idx = 0
     for i, name in enumerate(variable_names):
@@ -55,6 +78,16 @@ def write_result_to_csv(result: List[Any],
                         out_dir: Text,
                         outfile_name: Text,
                         **kwargs) -> None:
+    """
+    Write a run result to disk as a csv file.
+
+    Args:
+        result: List of ODE states in the run result, in Dict format.
+        out_dir: Designated output directory.
+        outfile_name: Designated output file name.
+        **kwargs: Additional keyword arguments passed to pandas.DataFrame.to_csv.
+    """
+
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 

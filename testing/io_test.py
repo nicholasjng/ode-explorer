@@ -33,8 +33,12 @@ def main():
                                step_func=step_func,
                                initial_state=initial_state,
                                h=0.01,
-                               max_steps=100,
+                               max_steps=5,
                                verbosity=logging.INFO,
                                progress_bar=True,
                                metrics=[DistanceToSolution(solution=sol, name="l2_distance")],
                                output_dir="my_run123")
+
+
+if __name__ == "__main__":
+    main()

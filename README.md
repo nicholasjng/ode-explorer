@@ -60,7 +60,6 @@ ode-explorer provides a ``StepFunction`` Interface that is built exactly for thi
 
 Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multistep methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.templates``. 
 
-[BEWARE]: As of 21/11/20, templates have been untested, so use at your own discretion (or fall back to the builtin methods for the moment) :-)
 
 ## Callbacks and metrics
 

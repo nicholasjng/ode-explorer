@@ -3,8 +3,8 @@ from typing import Dict, Any, Text, List, Callable
 from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.models import BaseModel
 from ode_explorer.models import messages
-from ode_explorer.types import StateVariable, ModelState
-from ode_explorer.utils.helpers import infer_variable_names, is_scalar
+from ode_explorer.types import StateVariable
+from ode_explorer.utils.helpers import infer_variable_names
 from ode_explorer.utils.import_utils import import_func_from_module
 
 ODEFunction = Callable[[StateVariable, StateVariable, Any], StateVariable]
@@ -50,30 +50,6 @@ class ODEModel(BaseModel):
 
         return {ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
                 ModelMetadataKeys.DIM_NAMES: self.dim_names}
-
-    def initialize_dim_names(self, initial_state: ModelState):
-        var_dims = []
-
-        for k, v in zip(self.variable_names, initial_state):
-            dim = 1 if is_scalar(v) else len(v)
-
-            var_dims.append((k, dim))
-
-        num_dims = sum(v[-1] for v in var_dims)
-
-        # TODO: Graceful error handling by renaming?
-        if self.dim_names and len(self.dim_names) != num_dims:
-            raise ValueError(messages.DIMENSION_MISMATCH.format(len(self.dim_names), num_dims))
-
-        if not self.dim_names:
-            dim_names = []
-            for i, (name, dim) in enumerate(var_dims):
-                if dim == 1:
-                    dim_names += [name]
-                else:
-                    dim_names += ["{0}_{1}".format(name, i) for i in range(1, dim + 1)]
-
-            self.dim_names = dim_names
 
     def __call__(self, t: StateVariable, y: StateVariable) -> StateVariable:
 

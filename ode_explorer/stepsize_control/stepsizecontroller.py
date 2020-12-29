@@ -40,7 +40,6 @@ class DOPRI45Controller(StepSizeController):
                  updated_state: ModelState,
                  model: ODEModel,
                  local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
-
         order4, order5 = updated_state
 
         y_prev = state[-1]

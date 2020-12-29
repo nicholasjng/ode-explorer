@@ -19,11 +19,11 @@ __all__ = ["ForwardEulerMethod",
 
 class ForwardEulerMethod(SingleStepMethod):
     """
-    Euler method for ODE integration.
+    Forward Euler method for ODE integration.
     """
 
     def __init__(self):
-        super(ForwardEulerMethod, self).__init__()
+        super(ForwardEulerMethod, self).__init__(order=1)
 
     def forward(self,
                 model: ODEModel,

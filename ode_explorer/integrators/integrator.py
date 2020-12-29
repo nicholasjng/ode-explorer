@@ -33,14 +33,25 @@ logger.addHandler(ch)
 
 class Integrator:
     """
-    Base class for all ODE integrators.
+    Base class for all ODE integrators. An integrator keeps minimal state to facilitate IO and
+    logging of model integration runs. It also serves as a registry for all model runs and can be
+    queried for specific runs by different attributes.
     """
 
     def __init__(self,
                  pre_step_hook: Callable = None,
-                 log_dir: Text = None,
+                 base_log_dir: Text = None,
                  logfile_name: Text = None,
                  base_output_dir: Text = None):
+        """
+        Base Integrator constructor.
+
+        Args:
+            pre_step_hook: Hook function to be called before the step. Currently unused.
+            base_log_dir: Base directory for saving ODE integration logs.
+            logfile_name: Base log file object to save all logs into.
+            base_output_dir: Base output directory for saving run and model data.
+        """
 
         # pre-step function, will be called before each step if specified
         self._pre_step_hook = pre_step_hook
@@ -51,11 +62,11 @@ class Integrator:
         # step count, can be used to track integration runs
         self._step_count = 0
 
-        self.log_dir = log_dir or os.path.join(os.getcwd(), "logs")
+        self.base_log_dir = base_log_dir or os.path.join(os.getcwd(), "logs")
 
         self.logfile_name = logfile_name or "logs.txt"
 
-        self._set_up_logger(log_dir=self.log_dir)
+        self._set_up_logger(log_dir=self.base_log_dir)
 
         self.base_output_dir = base_output_dir or os.path.join(os.getcwd(), "results")
 
@@ -73,7 +84,7 @@ class Integrator:
         if not os.path.exists(log_dir):
             os.mkdir(log_dir)
 
-        fh = logging.FileHandler(os.path.join(self.log_dir, self.logfile_name))
+        fh = logging.FileHandler(os.path.join(self.base_log_dir, self.logfile_name))
         fh.setLevel(logging.INFO)
         fh.setFormatter(absl.logging.PythonFormatter())
         logger.addHandler(fh)
@@ -154,7 +165,7 @@ class Integrator:
         # create file handler
         if logfile:
             self._flush_stale_file_handlers()
-            fh = logging.FileHandler(os.path.join(self.log_dir, logfile))
+            fh = logging.FileHandler(os.path.join(self.base_log_dir, logfile))
             logger.addHandler(fh)
 
         for handler in logger.handlers:
@@ -205,6 +216,24 @@ class Integrator:
                         progress_bar: bool = False,
                         callbacks: List[Callback] = None,
                         metrics: List[Metric] = None):
+        """
+        Integrate a model with a chosen step function and a constant step size.
+
+        Args:
+            model: ODEModel instance of your ODE problem.
+            step_func: Step Function used to integrate the model.
+            initial_state: State tuple containing the initial state variables.
+            end: Target end time for ODE solving. Equals the time value of the last step.
+            h: Constant step size for integration.
+            max_steps: Maximum allowed steps during the integration.
+            reset: Bool, whether to reset the integrator (this deletes all previous runs).
+            verbosity: Logging verbosity, default logging.INFO.
+            output_dir: Output directory. If specified,saves run data and info into this directory.
+            logfile: Log file. If specified, writes all logs of the integration into this file.
+            progress_bar: Bool, whether to display a progress bar during the run.
+            callbacks: List of callbacks to execute after each step.
+            metrics: List of metrics to calculate after each step.
+        """
 
         return self._integrate(loop_type="constant",
                                model=model,
@@ -237,6 +266,25 @@ class Integrator:
                               progress_bar: bool = False,
                               callbacks: List[Callback] = None,
                               metrics: List[Metric] = None):
+        """
+        Integrate a model with a chosen step function adaptively with custom step size control.
+
+        Args:
+            model: ODEModel instance of your ODE problem.
+            step_func: Step Function used to integrate the model.
+            initial_state: State tuple containing the initial state variables.
+            sc: Step size controller, adjusting the step size throughout the integration.
+            end: Target end time for ODE solving. Equals the time value of the last step.
+            initial_h: Initial step size for integration.
+            max_steps: Maximum allowed steps during the integration.
+            reset: Bool, whether to reset the integrator (this deletes all previous runs).
+            verbosity: Logging verbosity, default logging.INFO.
+            output_dir: Output directory. If specified,saves run data and info into this directory.
+            logfile: Log file. If specified, writes all logs of the integration into this file.
+            progress_bar: Bool, whether to display a progress bar during the run.
+            callbacks: List of callbacks to execute after each step.
+            metrics: List of metrics to calculate after each step.
+        """
 
         return self._integrate(loop_type="dynamic",
                                model=model,
@@ -255,6 +303,13 @@ class Integrator:
                                sc=sc)
 
     def list_runs(self, tablefmt: Text = "github"):
+        """
+        Lists all available previous runs.
+
+        Args:
+            tablefmt: Table format, passed to tabulate.
+        """
+
         if len(self.runs) == 0:
             print("No runs available!")
             return
@@ -264,6 +319,16 @@ class Integrator:
         print(tabulate(metadata_list, headers="keys", tablefmt=tablefmt))
 
     def get_run_by_id(self, run_id: Text):
+        """
+        Returns a previous ODE integration run by (partial) ID.
+
+        Args:
+            run_id: ID of the chosen integration run object.
+
+        Raises:
+            ValueError: If no run matches the given run ID.
+
+        """
         if len(self.runs) == 0:
             raise ValueError("No runs available. Please integrate a model first!")
         if run_id == "latest":
@@ -276,6 +341,16 @@ class Integrator:
         return run
 
     def return_result_data(self, run_id: Text) -> pd.DataFrame:
+        """
+        Construct a pd.DataFrame out of the result data of a previous integration run.
+
+        Args:
+            run_id: ID of the chosen integration run object.
+
+        Returns:
+            A pd.DataFrame containing the integration data as rows.
+        """
+
         run = self.get_run_by_id(run_id=run_id)
 
         model_metadata = run[RunKeys.MODEL_METADATA]
@@ -288,15 +363,45 @@ class Integrator:
         return pd.DataFrame(run_result)
 
     def return_metrics(self, run_id: Text) -> pd.DataFrame:
+        """
+        Construct a pd.DataFrame out of the result data of a previous integration run.
+
+        Args:
+            run_id: ID of the chosen integration run object.
+
+        Returns:
+            A pd.DataFrame containing the metric data of the run with ID run_id as rows.
+        """
+
         run = self.get_run_by_id(run_id=run_id)
 
         return pd.DataFrame(run[RunKeys.METRICS])
 
     def save_run(self, run: Dict, output_dir):
+        """
+        Saves a run object to an output directory on disk.
+
+        Args:
+            run: Run object obtained as output from ODE integration.
+            output_dir: Target directory to save the run to.
+
+        """
         out_dir = os.path.join(self.base_output_dir, output_dir)
         write_run_to_disk(run=run, out_dir=out_dir)
 
     def visualize(self, run_id: Text, ax=None):
+        """
+        Visualize a run result in matplotlib.
+
+        Args:
+            run_id: ID of the chosen integration run object.
+            ax: Matplotlib ax object to plot data to.
+
+        Raises:
+            ImportError: If matplotlib is not installed. Matplotlib is an optional pandas
+             dependency, and thus not part of the required dependencies of this package.
+
+        """
 
         df = self.return_result_data(run_id=run_id)
 

@@ -3,7 +3,7 @@ from typing import Callable
 
 from ode_explorer.defaults import standard_rhs, hamiltonian_rhs
 
-__all__ = ["is_scalar", "infer_variable_names"]
+__all__ = ["is_scalar", "infer_variable_names", "infer_separability"]
 
 
 def is_scalar(y):

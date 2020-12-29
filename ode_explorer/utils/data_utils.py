@@ -7,7 +7,7 @@ from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.types import ModelState
 from ode_explorer.utils.helpers import is_scalar
 
-__all__ = ["convert_to_dict", "write_result_to_csv"]
+__all__ = ["initialize_dim_names", "convert_to_dict", "write_result_to_csv"]
 
 
 def initialize_dim_names(variable_names: List[Text], state: ModelState):

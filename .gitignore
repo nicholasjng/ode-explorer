@@ -26,3 +26,6 @@ venv
 build
 *.c
 *.so
+
+# some local test stuff
+unused_files

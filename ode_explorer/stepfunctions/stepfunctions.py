@@ -4,14 +4,12 @@ import numpy as np
 from scipy.optimize import root, root_scalar
 
 from ode_explorer.models import ODEModel, HamiltonianSystem
-from ode_explorer.stepfunctions.templates import SingleStepMethod, ExplicitMultiStepMethod, ImplicitMultiStepMethod
+from ode_explorer.stepfunctions.templates import *
 
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
-from ode_explorer.stepfunctions.stepfunc_impl import euler_scalar, euler_ndim
 
 __all__ = ["EulerMethod",
-           "EulerCython",
            "HeunMethod",
            "RungeKutta4",
            "DOPRI5",
@@ -38,32 +36,6 @@ class EulerMethod(SingleStepMethod):
         t, y = self.get_data_from_state(state=state)
 
         y_new = y + h * model(t, y)
-
-        new_state = self.make_new_state(t=t+h, y=y_new)
-
-        return new_state
-
-
-class EulerCython(SingleStepMethod):
-    """
-    Euler method for ODE integration.
-    """
-
-    def __init__(self):
-        super(EulerCython, self).__init__()
-
-    def forward(self,
-                model: ODEModel,
-                state: ModelState,
-                h: float,
-                **kwargs) -> ModelState:
-
-        t, y = self.get_data_from_state(state=state)
-
-        if is_scalar(y):
-            y_new = euler_scalar(model.ode_fn, t, y, h, **kwargs)
-        else:
-            y_new = euler_ndim(model.ode_fn, t, y, h, **kwargs)
 
         new_state = self.make_new_state(t=t+h, y=y_new)
 

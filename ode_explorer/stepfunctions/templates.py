@@ -9,6 +9,13 @@ from ode_explorer.utils.helpers import is_scalar
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["SingleStepMethod",
+           "MultiStepMethod",
+           "ExplicitRungeKuttaMethod",
+           "ImplicitRungeKuttaMethod",
+           "ExplicitMultiStepMethod",
+           "ImplicitMultiStepMethod"]
+
 
 class SingleStepMethod:
     """

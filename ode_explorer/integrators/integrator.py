@@ -12,14 +12,14 @@ from tabulate import tabulate
 from ode_explorer import constants
 from ode_explorer import defaults
 from ode_explorer.callbacks import Callback
-from ode_explorer.constants import RunKeys, RunConfigKeys
+from ode_explorer.constants import RunKeys, RunConfigKeys, ModelMetadataKeys
 from ode_explorer.integrators.loop_factory import loop_factory
 from ode_explorer.metrics import Metric
 from ode_explorer.models import ODEModel
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.stepsize_control import StepSizeController
 from ode_explorer.types import ModelState
-from ode_explorer.utils.data_utils import convert_to_dict
+from ode_explorer.utils.data_utils import convert_to_dict, initialize_dim_names
 from ode_explorer.utils.run_utils import write_run_to_disk, get_run_metadata
 
 logger = logging.getLogger(__name__)
@@ -42,7 +42,8 @@ class Integrator:
                  pre_step_hook: Callable = None,
                  base_log_dir: Text = None,
                  logfile_name: Text = None,
-                 base_output_dir: Text = None):
+                 base_output_dir: Text = None,
+                 csv_io_args: Dict[Text, Any] = None):
         """
         Base Integrator constructor.
 
@@ -51,6 +52,8 @@ class Integrator:
             base_log_dir: Base directory for saving ODE integration logs.
             logfile_name: Base log file object to save all logs into.
             base_output_dir: Base output directory for saving run and model data.
+            csv_io_args: Additional keyword arguments passed to pandas.DataFrame.to_csv
+             when writing data to a CSV file.
         """
 
         # pre-step function, will be called before each step if specified
@@ -69,6 +72,10 @@ class Integrator:
         self._set_up_logger(log_dir=self.base_log_dir)
 
         self.base_output_dir = base_output_dir or os.path.join(os.getcwd(), "results")
+
+        self.datetime_format = "%c"
+
+        self.csv_io_args = csv_io_args or {}
 
         if not os.path.exists(self.base_output_dir):
             os.mkdir(self.base_output_dir)
@@ -96,8 +103,8 @@ class Integrator:
                 if handler.baseFilename != self.logfile_name:
                     logger.handlers.remove(handler)
 
-    @staticmethod
-    def _make_run(model: ODEModel,
+    def _make_run(self,
+                  model: ODEModel,
                   step_func: StepFunction,
                   sc: Union[StepSizeController, Callable],
                   initial_state: ModelState,
@@ -111,8 +118,8 @@ class Integrator:
         callbacks = callbacks or []
         metrics = metrics or []
 
-        run = {constants.TIMESTAMP: datetime.datetime.now(),
-               constants.RUN_ID: uuid.uuid4()}
+        run = {constants.TIMESTAMP: datetime.datetime.now().strftime(self.datetime_format),
+               constants.RUN_ID: str(uuid.uuid4())}
 
         start = initial_state[0]
 
@@ -355,10 +362,18 @@ class Integrator:
 
         model_metadata = run[RunKeys.MODEL_METADATA]
 
+        dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
+
+        variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
+
         run_result = copy.deepcopy(run[RunKeys.RESULT_DATA])
 
+        if not dim_names:
+            dim_names = initialize_dim_names(variable_names, run_result[0])
+
         for i, res in enumerate(run_result):
-            run_result[i] = convert_to_dict(res, model_metadata=model_metadata)
+            run_result[i] = convert_to_dict(res, model_metadata=model_metadata,
+                                            dim_names=dim_names)
 
         return pd.DataFrame(run_result)
 
@@ -387,7 +402,7 @@ class Integrator:
 
         """
         out_dir = os.path.join(self.base_output_dir, output_dir)
-        write_run_to_disk(run=run, out_dir=out_dir)
+        write_run_to_disk(run=run, out_dir=out_dir, **self.csv_io_args)
 
     def visualize(self, run_id: Text, ax=None):
         """

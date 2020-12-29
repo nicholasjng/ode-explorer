@@ -56,15 +56,15 @@ def main():
 
             print(metrics.describe())
 
-        integrator.integrate_dynamically(model=model,
-                                         step_func=DOPRI45(),
-                                         sc=DOPRI45Controller(atol=1e-9),
-                                         initial_state=initial_state,
-                                         initial_h=0.001,
-                                         verbosity=1,
-                                         end=10.0,
-                                         progress_bar=True,
-                                         metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
+        integrator.integrate_adaptively(model=model,
+                                        step_func=DOPRI45(),
+                                        sc=DOPRI45Controller(atol=1e-9),
+                                        initial_state=initial_state,
+                                        initial_h=0.001,
+                                        verbosity=1,
+                                        end=10.0,
+                                        progress_bar=True,
+                                        metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
 
         metrics = integrator.return_metrics(run_id="latest")
 

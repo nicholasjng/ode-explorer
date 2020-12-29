@@ -22,15 +22,7 @@ def main():
     initial_state = (t_0, y_0)
 
     integrator.integrate_const(model=model,
-                               step_func=EulerMethod(),
-                               initial_state=initial_state,
-                               h=0.001,
-                               max_steps=10000,
-                               verbosity=1,
-                               progress_bar=True)
-
-    integrator.integrate_const(model=model,
-                               step_func=EulerCython(),
+                               step_func=ForwardEulerMethod(),
                                initial_state=initial_state,
                                h=0.001,
                                max_steps=10000,

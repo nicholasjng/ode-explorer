@@ -230,7 +230,7 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         y_new = y + h * np.dot(self.gammas, self.k)
 
-        return self.make_new_state(t=t+h, y=y_new)
+        return self.make_new_state(t=t + h, y=y_new)
 
 
 class ImplicitRungeKuttaMethod(SingleStepMethod):
@@ -290,7 +290,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
             model_stack = np.concatenate([model(t + h * self.alphas[i],
                                                 y + h * np.dot(self.betas[i], x.reshape(initial_shape)))
-                                         for i in range(self.num_stages)])
+                                          for i in range(self.num_stages)])
 
             return model_stack - x
 
@@ -317,7 +317,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
             y_new = y + h * self.gammas[0] * root_res.root
 
-        return self.make_new_state(t=t+h, y=y_new)
+        return self.make_new_state(t=t + h, y=y_new)
 
 
 class ExplicitMultiStepMethod(MultiStepMethod):
@@ -361,9 +361,9 @@ class ExplicitMultiStepMethod(MultiStepMethod):
         y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
 
         self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
-        self.f_cache[-1] = model(t+h, y_new)
+        self.f_cache[-1] = model(t + h, y_new)
 
-        return self.make_new_state(t=t+h, y=y_new)
+        return self.make_new_state(t=t + h, y=y_new)
 
 
 class ImplicitMultiStepMethod(MultiStepMethod):
@@ -428,4 +428,4 @@ class ImplicitMultiStepMethod(MultiStepMethod):
         self.y_cache = np.roll(self.y_cache, shift=-1, axis=0)
         self.y_cache[-1] = y_new
 
-        return self.make_new_state(t=t+h, y=y_new)
+        return self.make_new_state(t=t + h, y=y_new)

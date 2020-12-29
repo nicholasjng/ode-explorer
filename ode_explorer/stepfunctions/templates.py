@@ -255,6 +255,9 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
 
+        self._array_ops = {"scalar": np.array,
+                           "ndim": np.concatenate}
+
     @staticmethod
     def validate_butcher_tableau(alphas: np.ndarray,
                                  betas: np.ndarray,
@@ -291,11 +294,13 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         initial_shape = self.k.shape
         shape_prod = np.prod(initial_shape)
 
+        op_type = "scalar" if is_scalar(y) else "ndim"
+
         def F(x: np.ndarray) -> np.ndarray:
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = np.concatenate([model(t + h * self.alphas[i],
-                                                y + h * np.dot(self.betas[i], x.reshape(initial_shape)))
-                                          for i in range(self.num_stages)])
+            model_stack = self._array_ops.get(op_type)(
+                [model(t + h * self.alphas[i], y + h * np.dot(self.betas[i], x.reshape(initial_shape)))
+                 for i in range(self.num_stages)])
 
             return model_stack - x
 

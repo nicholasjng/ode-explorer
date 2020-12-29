@@ -1,4 +1,3 @@
-
 MISSING_INFO = "Missing model information. Supply a right hand side f(t,y) " \
                "either by specifying a source path or a callable function."
 

@@ -1,9 +1,9 @@
 from ode_explorer.stepfunctions.stepfunctions import (
-    EulerMethod,
+    ForwardEulerMethod,
     HeunMethod,
     RungeKutta4,
     DOPRI45,
-    ImplicitEulerMethod,
+    BackwardEulerMethod,
     AdamsBashforth2,
     BDF2
 )

@@ -8,7 +8,7 @@ from ode_explorer.stepfunctions.templates import *
 from ode_explorer.types import ModelState, StateVariable
 from ode_explorer.utils.helpers import is_scalar
 
-__all__ = ["EulerMethod",
+__all__ = ["ForwardEulerMethod",
            "HeunMethod",
            "RungeKutta4",
            "DOPRI45",
@@ -17,13 +17,13 @@ __all__ = ["EulerMethod",
            "BDF2"]
 
 
-class EulerMethod(SingleStepMethod):
+class ForwardEulerMethod(SingleStepMethod):
     """
     Euler method for ODE integration.
     """
 
     def __init__(self):
-        super(EulerMethod, self).__init__()
+        super(ForwardEulerMethod, self).__init__()
 
     def forward(self,
                 model: ODEModel,

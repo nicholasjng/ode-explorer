@@ -39,7 +39,7 @@ class SingleStepMethod:
             shape = (self.num_stages, model_dim)
 
         self.model_dim = model_dim
-        self.ks = np.zeros(shape=shape)
+        self.k = np.zeros(shape=shape)
 
     def _get_shape(self, y: StateVariable):
         return (self.num_stages,) if is_scalar(y) else (self.num_stages, len(y))
@@ -186,7 +186,7 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.ks = np.zeros(betas.shape[0])
+        self.k = np.zeros(betas.shape[0])
 
     @staticmethod
     def validate_butcher_tableau(alphas: np.ndarray,
@@ -219,16 +219,16 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         t, y = self.get_data_from_state(state=state)
 
-        if self._get_shape(y) != self.ks.shape:
+        if self._get_shape(y) != self.k.shape:
             self._adjust_dims(y)
 
-        self.ks[0] = model(t, y)
+        self.k[0] = model(t, y)
 
         for i in range(1, self.num_stages):
             # first row of betas is a zero row because it is an explicit RK
-            self.ks[i] = model(t + h * self.alphas[i], y + h * np.dot(self.betas[i], self.ks))
+            self.k[i] = model(t + h * self.alphas[i], y + h * np.dot(self.betas[i], self.k))
 
-        y_new = y + h * np.dot(self.gammas, self.ks)
+        y_new = y + h * np.dot(self.gammas, self.k)
 
         return self.make_new_state(t=t+h, y=y_new)
 
@@ -249,7 +249,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.ks = np.zeros(betas.shape[0])
+        self.k = np.zeros(betas.shape[0])
 
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
@@ -280,10 +280,10 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
         t, y = self.get_data_from_state(state=state)
 
-        if self._get_shape(y) != self.ks.shape:
+        if self._get_shape(y) != self.k.shape:
             self._adjust_dims(y)
 
-        initial_shape = self.ks.shape
+        initial_shape = self.k.shape
         shape_prod = np.prod(initial_shape)
 
         def F(x: np.ndarray) -> np.ndarray:
@@ -307,7 +307,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
         if shape_prod != 1:
             # TODO: Retry here in case of convergence failure?
-            root_res = root(F, x0=self.ks.reshape((shape_prod,)), args=args, **self.solver_kwargs)
+            root_res = root(F, x0=self.k.reshape((shape_prod,)), args=args, **self.solver_kwargs)
 
             y_new = y + h * np.dot(self.gammas, root_res.x.reshape(initial_shape))
 

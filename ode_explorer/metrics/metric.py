@@ -34,7 +34,7 @@ class DistanceToSolution(Metric):
         super(DistanceToSolution, self).__init__(name=name)
 
         self.solution = solution
-        self.norm = norm or 2
+        self.norm = norm or None
 
     def __call__(self,
                  i: int,

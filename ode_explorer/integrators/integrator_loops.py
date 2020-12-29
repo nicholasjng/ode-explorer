@@ -118,10 +118,10 @@ def dynamic_h_loop(run: Dict[Text, Any],
             h = end - current
 
         # initialize with the current iteration number and time stamp
-        new_metrics = {"iteration": i,
-                       "step_size": h,
-                       "n_accept": int(accepted),
-                       "n_reject": int(not accepted)}
+        new_metrics = {defaults.iteration: i,
+                       defaults.step_size: h,
+                       defaults.accepted: int(accepted),
+                       defaults.rejected: int(not accepted)}
 
         for metric in metrics:
             new_metrics[metric.__name__] = metric(i, state, higher_order_sol, model, locals())

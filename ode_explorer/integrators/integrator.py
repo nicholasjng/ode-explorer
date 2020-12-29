@@ -10,6 +10,7 @@ import pandas as pd
 from tabulate import tabulate
 
 from ode_explorer import constants
+from ode_explorer import defaults
 from ode_explorer.callbacks import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys
 from ode_explorer.integrators.loop_factory import loop_factory
@@ -122,10 +123,10 @@ class Integrator:
 
         if bool(sc):
             # means dynamical integration, hence we log step size, accepts and rejects
-            initial_metrics.update({"iteration": 0,
-                                    "step_size": h,
-                                    "n_accept": 0,
-                                    "n_reject": 0})
+            initial_metrics.update({defaults.iteration: 0,
+                                    defaults.step_size: h,
+                                    defaults.accepted: 1,
+                                    defaults.rejected: 0})
 
         run.update({RunKeys.MODEL_METADATA: model.get_metadata(),
                     RunKeys.RUN_CONFIG: run_config,

@@ -6,3 +6,9 @@ INITIAL_H = 0.01
 # and Hamiltonian systems
 standard_rhs = ["t", "y"]
 hamiltonian_rhs = ["t", "q", "p"]
+
+# step size control builtin metric names
+iteration = "iteration"
+step_size = "h"
+accepted = "accepted"
+rejected = "rejected"

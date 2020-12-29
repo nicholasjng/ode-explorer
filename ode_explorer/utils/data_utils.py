@@ -36,7 +36,6 @@ def write_result_to_csv(result: List[Any],
                         out_dir: Text,
                         outfile_name: Text,
                         **kwargs) -> None:
-
     if not os.path.exists(out_dir):
         os.mkdir(out_dir)
 

@@ -33,7 +33,6 @@ def infer_variable_names(rhs: Callable):
 
 def infer_separability(q_derivative: Callable,
                        p_derivative: Callable) -> bool:
-
     is_separable = False
 
     # h_set = set(infer_variable_names(hamiltonian))

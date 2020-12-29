@@ -15,7 +15,6 @@ def get_run_metadata(run):
 
 
 def write_run_to_disk(run: Dict, out_dir: Text):
-
     result_data = run[RunKeys.RESULT_DATA]
 
     metric_data = run[RunKeys.METRICS]

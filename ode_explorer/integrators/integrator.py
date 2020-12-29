@@ -102,9 +102,6 @@ class Integrator:
         run = {constants.TIMESTAMP: datetime.datetime.now(),
                constants.RUN_ID: uuid.uuid4()}
 
-        # initialize dimension names
-        model.initialize_dim_names(initial_state)
-
         start = initial_state[0]
 
         run_config = {RunConfigKeys.START: start,

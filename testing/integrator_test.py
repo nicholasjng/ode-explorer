@@ -24,23 +24,30 @@ def main():
 
     model = ODEModel(ode_fn=ode_func, fn_args={"lamb": lamb})
 
+    step_list = [ForwardEulerMethod(),
+                 HeunMethod(),
+                 RungeKutta4(),
+                 BackwardEulerMethod(),
+                 AdamsBashforth2(startup=ForwardEulerMethod()),
+                 BDF2(startup=ForwardEulerMethod())]
+
     integrator = Integrator()
 
     initial_state = (t_0, y_0)
 
-    integrator.integrate_const(model=model,
-                               step_func=BDF2(startup=RungeKutta4()),
-                               # step_func=AdamsBashforth2(startup=EulerMethod()),
-                               initial_state=initial_state,
-                               h=0.001,
-                               max_steps=10000,
-                               verbosity=1,
-                               progress_bar=True,
-                               metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
+    for step_func in step_list:
+        integrator.integrate_const(model=model,
+                                   step_func=step_func,
+                                   initial_state=initial_state,
+                                   h=0.001,
+                                   max_steps=10000,
+                                   verbosity=1,
+                                   progress_bar=True,
+                                   metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
 
-    metrics = integrator.return_metrics(run_id="latest")
+        metrics = integrator.return_metrics(run_id="latest")
 
-    print(metrics.describe())
+        print(metrics.describe())
 
     integrator.integrate_dynamically(model=model,
                                      step_func=DOPRI45(),

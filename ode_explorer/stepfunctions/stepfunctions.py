@@ -12,7 +12,7 @@ __all__ = ["EulerMethod",
            "HeunMethod",
            "RungeKutta4",
            "DOPRI45",
-           "ImplicitEulerMethod",
+           "BackwardEulerMethod",
            "AdamsBashforth2",
            "BDF2"]
 
@@ -135,13 +135,13 @@ class DOPRI45(SingleStepMethod):
         return new_state4, new_state5
 
 
-class ImplicitEulerMethod(SingleStepMethod):
+class BackwardEulerMethod(SingleStepMethod):
     """
     Implicit Euler Method for ODE solving.
     """
 
     def __init__(self, **kwargs):
-        super(ImplicitEulerMethod, self).__init__(order=2)
+        super(BackwardEulerMethod, self).__init__(order=2)
 
         self.num_stages = 1
         # scipy.optimize.root options

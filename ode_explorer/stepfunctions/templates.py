@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-from scipy.optimize import root, root_scalar
+from scipy.optimize import root
 
 from ode_explorer.models import ODEModel
 from ode_explorer.types import StateVariable, ModelState
@@ -267,6 +267,10 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
             _error_msg.append("Betas must be a quadratic matrix with the same "
                               "dimension as the alphas/gammas arrays")
 
+        if betas.shape[0] == 1:
+            _error_msg.append("You have supplied a single-stage implicit RK method. Please use the "
+                              "builtin BackwardEuler class instead.")
+
         if _error_msg:
             raise ValueError("An error occurred while validating the input "
                              "Butcher tableau. More information: "
@@ -294,28 +298,16 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
             return model_stack - x
 
-        # modified function in case of using Implicit Euler method or
-        # equivalents on a scalar ODE
-        def F_scalar(x: float) -> float:
-            return model(t + h * self.alphas[0], y + h * self.betas[0] * x) - x
-
         # sort the kwargs before putting them into the tuple passed to root
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
         else:
             args = ()
 
-        if shape_prod != 1:
-            # TODO: Retry here in case of convergence failure?
-            root_res = root(F, x0=self.k.reshape((shape_prod,)), args=args, **self.solver_kwargs)
+        # TODO: Retry here in case of convergence failure?
+        root_res = root(F, x0=self.k.reshape((shape_prod,)), args=args, **self.solver_kwargs)
 
-            y_new = y + h * np.dot(self.gammas, root_res.x.reshape(initial_shape))
-
-        else:
-            root_res = root_scalar(F_scalar, x0=y, x1=y + h * self.gammas[0],
-                                   args=args, **self.solver_kwargs)
-
-            y_new = y + h * self.gammas[0] * root_res.root
+        y_new = y + h * np.dot(self.gammas, root_res.x.reshape(initial_shape))
 
         return self.make_new_state(t=t + h, y=y_new)
 

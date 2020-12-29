@@ -258,21 +258,21 @@ class Integrator:
                                metrics=metrics,
                                sc=None)
 
-    def integrate_dynamically(self,
-                              model: ODEModel,
-                              step_func: StepFunction,
-                              initial_state: ModelState,
-                              sc: Union[StepSizeController, Callable],
-                              end: float,
-                              initial_h: float = None,
-                              max_steps: int = None,
-                              reset: bool = False,
-                              verbosity: int = logging.INFO,
-                              output_dir: Text = None,
-                              logfile: Text = None,
-                              progress_bar: bool = False,
-                              callbacks: List[Callback] = None,
-                              metrics: List[Metric] = None):
+    def integrate_adaptively(self,
+                             model: ODEModel,
+                             step_func: StepFunction,
+                             initial_state: ModelState,
+                             sc: Union[StepSizeController, Callable],
+                             end: float,
+                             initial_h: float = None,
+                             max_steps: int = None,
+                             reset: bool = False,
+                             verbosity: int = logging.INFO,
+                             output_dir: Text = None,
+                             logfile: Text = None,
+                             progress_bar: bool = False,
+                             callbacks: List[Callback] = None,
+                             metrics: List[Metric] = None):
         """
         Integrate a model with a chosen step function adaptively with custom step size control.
 
@@ -293,7 +293,7 @@ class Integrator:
             metrics: List of metrics to calculate after each step.
         """
 
-        return self._integrate(loop_type="dynamic",
+        return self._integrate(loop_type="adaptive",
                                model=model,
                                step_func=step_func,
                                initial_state=initial_state,

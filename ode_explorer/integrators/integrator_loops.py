@@ -12,7 +12,7 @@ from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.stepsize_control import StepSizeController
 from ode_explorer.types import ModelState
 
-__all__ = ["constant_h_loop", "dynamic_h_loop"]
+__all__ = ["constant_h_loop", "adaptive_h_loop"]
 
 logger = logging.getLogger(__name__)
 
@@ -68,16 +68,16 @@ def constant_h_loop(run: Dict[Text, Any],
         state = updated_state
 
 
-def dynamic_h_loop(run: Dict[Text, Any],
-                   step_func: StepFunction,
-                   model: ODEModel,
-                   h: float,
-                   max_steps: int,
-                   state: ModelState,
-                   callbacks: List[Callback],
-                   metrics: List[Metric],
-                   sc: StepSizeController = None,
-                   progress_bar: bool = False):
+def adaptive_h_loop(run: Dict[Text, Any],
+                    step_func: StepFunction,
+                    model: ODEModel,
+                    h: float,
+                    max_steps: int,
+                    state: ModelState,
+                    callbacks: List[Callback],
+                    metrics: List[Metric],
+                    sc: StepSizeController = None,
+                    progress_bar: bool = False):
     # callbacks and metrics
     callbacks = callbacks or []
     metrics = metrics or []

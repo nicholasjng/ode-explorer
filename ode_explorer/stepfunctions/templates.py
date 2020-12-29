@@ -52,6 +52,9 @@ class SingleStepMethod:
     def make_new_state(t: StateVariable, y: StateVariable) -> ModelState:
         return t, y
 
+    def reset(self):
+        pass
+
     def forward(self,
                 model: ODEModel,
                 state_dict: ModelState,
@@ -103,9 +106,7 @@ class MultiStepMethod:
         return t, y
 
     def _adjust_dims(self, y: StateVariable):
-        scalar_ode = is_scalar(y)
-
-        if scalar_ode:
+        if is_scalar(y):
             model_dim = 1
             shape = (self.num_previous,)
 

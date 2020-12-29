@@ -7,7 +7,7 @@ from ode_explorer import defaults
 from ode_explorer.callbacks import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys
 from ode_explorer.metrics import Metric
-from ode_explorer.models import ODEModel
+from ode_explorer.models import BaseModel
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.stepsize_control import StepSizeController
 from ode_explorer.types import ModelState
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def constant_h_loop(run: Dict[Text, Any],
                     step_func: StepFunction,
-                    model: ODEModel,
+                    model: BaseModel,
                     h: float,
                     max_steps: int,
                     state: ModelState,
@@ -70,7 +70,7 @@ def constant_h_loop(run: Dict[Text, Any],
 
 def adaptive_h_loop(run: Dict[Text, Any],
                     step_func: StepFunction,
-                    model: ODEModel,
+                    model: BaseModel,
                     h: float,
                     max_steps: int,
                     state: ModelState,

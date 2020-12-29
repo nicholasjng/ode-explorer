@@ -3,11 +3,11 @@ from typing import Dict, Any, Text, List, Callable
 from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.models import BaseModel
 from ode_explorer.models import messages
-from ode_explorer.types import ModelState, StateVariable
+from ode_explorer.types import StateVariable
 from ode_explorer.utils.helpers import infer_variable_names, infer_separability
 from ode_explorer.utils.import_utils import import_func_from_module
 
-Hamiltonian = Callable[[ModelState], float]
+Hamiltonian = Callable[[StateVariable, StateVariable, StateVariable, Any], float]
 
 
 class HamiltonianSystem(BaseModel):
@@ -65,7 +65,6 @@ class HamiltonianSystem(BaseModel):
             is_separable: Boolean indicator, whether the Hamiltonian is separable or not. If not
              supplied, will be inferred on construction.
         """
-
         # ODE function, right hand side of (q', p') = dH(t, q, p)
         if not any([bool(hamiltonian), bool(q_derivative), bool(p_derivative)]):
             raise ValueError(messages.MISSING_INFO)
@@ -91,8 +90,7 @@ class HamiltonianSystem(BaseModel):
         if is_separable is not None:
             self.is_separable = is_separable
         else:
-            self.is_separable = infer_separability(self.q_derivative,
-                                                   self.p_derivative)
+            self.is_separable = infer_separability(self.q_derivative, self.p_derivative)
 
     def make_state(self, t: StateVariable, q: StateVariable, p: StateVariable):
         """
@@ -124,7 +122,6 @@ class HamiltonianSystem(BaseModel):
         Returns:
             A dict with model metadata information.
         """
-
         return {ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
                 ModelMetadataKeys.DIM_NAMES: self.dim_names}
 

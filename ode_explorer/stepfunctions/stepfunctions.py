@@ -14,7 +14,9 @@ __all__ = ["ForwardEulerMethod",
            "DOPRI45",
            "BackwardEulerMethod",
            "AdamsBashforth2",
-           "BDF2"]
+           "BDF2",
+           "EulerA",
+           "EulerB"]
 
 
 class ForwardEulerMethod(SingleStepMethod):

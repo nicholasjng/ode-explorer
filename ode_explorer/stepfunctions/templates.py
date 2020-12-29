@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from scipy.optimize import root
 
-from ode_explorer.models import ODEModel
+from ode_explorer.models import BaseModel, ODEModel
 from ode_explorer.types import StateVariable, ModelState
 from ode_explorer.utils.helpers import is_scalar
 
@@ -86,7 +86,7 @@ class SingleStepMethod:
         pass
 
     def forward(self,
-                model: ODEModel,
+                model: BaseModel,
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:

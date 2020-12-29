@@ -15,7 +15,7 @@ from ode_explorer.callbacks import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys, ModelMetadataKeys
 from ode_explorer.integrators.loop_factory import loop_factory
 from ode_explorer.metrics import Metric
-from ode_explorer.models import ODEModel
+from ode_explorer.models import BaseModel
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.stepsize_control import StepSizeController
 from ode_explorer.types import ModelState
@@ -104,7 +104,7 @@ class Integrator:
                     logger.handlers.remove(handler)
 
     def _make_run(self,
-                  model: ODEModel,
+                  model: BaseModel,
                   step_func: StepFunction,
                   sc: Union[StepSizeController, Callable],
                   initial_state: ModelState,
@@ -155,7 +155,7 @@ class Integrator:
 
     def _integrate(self,
                    loop_type: Text,
-                   model: ODEModel,
+                   model: BaseModel,
                    step_func: StepFunction,
                    initial_state: ModelState,
                    end: float,
@@ -210,7 +210,7 @@ class Integrator:
         return self
 
     def integrate_const(self,
-                        model: ODEModel,
+                        model: BaseModel,
                         step_func: StepFunction,
                         initial_state: ModelState,
                         end: float = None,
@@ -259,7 +259,7 @@ class Integrator:
                                sc=None)
 
     def integrate_adaptively(self,
-                             model: ODEModel,
+                             model: BaseModel,
                              step_func: StepFunction,
                              initial_state: ModelState,
                              sc: Union[StepSizeController, Callable],

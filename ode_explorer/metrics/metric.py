@@ -2,7 +2,7 @@ from typing import Dict, Text, Any, Callable, Union
 
 import numpy as np
 
-from ode_explorer.models import ODEModel
+from ode_explorer.models import BaseModel
 from ode_explorer.types import ModelState
 
 
@@ -26,7 +26,7 @@ class Metric:
                  i: int,
                  state: ModelState,
                  updated_state: ModelState,
-                 model: ODEModel,
+                 model: BaseModel,
                  local_vars: Dict[Text, Any]) -> Any:
         raise NotImplementedError
 
@@ -59,7 +59,7 @@ class DistanceToSolution(Metric):
                  i: int,
                  state: ModelState,
                  updated_state: ModelState,
-                 model: ODEModel,
+                 model: BaseModel,
                  local_vars: Dict[Text, Any]) -> Any:
         """
         Solution distance call operator overload.

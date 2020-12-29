@@ -3,7 +3,7 @@ from typing import Dict, Text, Any
 
 import numpy as np
 
-from ode_explorer.models import ODEModel
+from ode_explorer.models import BaseModel
 from ode_explorer.types import ModelState
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class Callback:
                  i: int,
                  state: ModelState,
                  updated_state: ModelState,
-                 model: ODEModel,
+                 model: BaseModel,
                  local_vars: Dict[Text, Any]) -> None:
         """
         Callback class call operator. Overload this with your custom logic to use in
@@ -77,7 +77,7 @@ class NaNChecker(Callback):
                  i: int,
                  state: ModelState,
                  updated_state: ModelState,
-                 model: ODEModel,
+                 model: BaseModel,
                  local_vars: Dict[Text, Any]) -> None:
         """
         Control flow of the NaN checking callback.

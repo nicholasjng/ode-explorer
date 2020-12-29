@@ -34,7 +34,7 @@ class ODEModel(BaseModel):
                  module_path: Text = None,
                  ode_fn_name: Text = None,
                  fn_args: Dict[Text, Any] = None,
-                 dim_names: List[Text] = None):
+                 dim_names: List[Text] = None) -> None:
         """
         ODEModel constructor.
 
@@ -48,8 +48,6 @@ class ODEModel(BaseModel):
             dim_names: Optional list of dimension names for result data saving. These will become column
              headers in result pandas.DataFrame objects.
         """
-
-        # ODE function, right hand side of y' = f(t,y)
         if not any([bool(module_path), bool(ode_fn_name), bool(ode_fn)]):
             raise ValueError(messages.MISSING_INFO)
 

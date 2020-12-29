@@ -1,8 +1,8 @@
+
 class BaseModel:
     """
     Base model class. Override this to define your own ODE model classes.
     """
-
     def make_state(self, *args, **kwargs):
         """
         Constructs a state object from raw input floats and numpy arrays.
@@ -11,7 +11,10 @@ class BaseModel:
             A state object holding the input data.
 
         """
-        pass
+        raise NotImplementedError
+
+    def get_metadata(self):
+        raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
         """

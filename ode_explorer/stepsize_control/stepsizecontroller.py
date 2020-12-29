@@ -2,7 +2,7 @@ from typing import Dict, Text, Any, Tuple
 
 import numpy as np
 
-from ode_explorer.models.model import ODEModel
+from ode_explorer.models.model import BaseModel
 from ode_explorer.types import ModelState
 
 
@@ -17,7 +17,7 @@ class StepSizeController:
                  h: float,
                  state: ModelState,
                  updated_state: ModelState,
-                 model: ODEModel,
+                 model: BaseModel,
                  local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
         raise NotImplementedError
 
@@ -57,7 +57,7 @@ class DOPRI45Controller(StepSizeController):
                  h: float,
                  state: ModelState,
                  updated_state: ModelState,
-                 model: ODEModel,
+                 model: BaseModel,
                  local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
         """
         DOPRI45 step size control call operator.

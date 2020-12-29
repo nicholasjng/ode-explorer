@@ -5,7 +5,9 @@ from ode_explorer.stepfunctions.stepfunctions import (
     DOPRI45,
     BackwardEulerMethod,
     AdamsBashforth2,
-    BDF2
+    BDF2,
+    EulerA,
+    EulerB
 )
 
 from ode_explorer.stepfunctions.templates import (

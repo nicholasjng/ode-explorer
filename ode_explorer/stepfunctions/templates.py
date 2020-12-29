@@ -19,11 +19,17 @@ __all__ = ["SingleStepMethod",
 
 class SingleStepMethod:
     """
-    Base class for all ODE step functions.
+    Base class for all single step functions for ODE solving. Override this class and its methods
+    to make your own custom single-step functions.
     """
 
     def __init__(self, order: int = 0):
-        # order of the method
+        """
+        Base SingleStepMethod constructor.
+
+        Args:
+            order: Order of the method.
+        """
         self.order = order
         self.model_dim = 0
         self.num_stages = 0
@@ -46,26 +52,68 @@ class SingleStepMethod:
 
     @staticmethod
     def get_data_from_state(state: ModelState):
+        """
+        Custom member function for getting the raw numpy-compatible data from a ModelState object.
+        Override this if you intend to use a custom state type such as a NamedTuple.
+
+        Args:
+            state: State object holding the numpy-compatible data.
+
+        Returns:
+            Raw numpy-compatible state data for use in the forward member function.
+        """
         return state
 
     @staticmethod
     def make_new_state(t: StateVariable, y: StateVariable) -> ModelState:
+        """
+        Custom function for constructing a new state from numpy data.
+        Override this if you intend to use a custom state type such as a NamedTuple.
+
+        Args:
+            t: Time variable at the new state.
+            y: Spatial variable at the new state.
+
+        Returns:
+            A new state object holding the raw data.
+        """
         return t, y
 
     def reset(self):
+        """
+        Unused reset method for compatibility.
+        """
         pass
 
     def forward(self,
                 model: ODEModel,
-                state_dict: ModelState,
+                state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+        """
+        Main method to advance an ODE in time by computing a new state using a single-step method.
+        Override this to define your own single-step functions.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+
+        Returns:
+            A new state containing the ODE model data at time t+h.
+        """
         raise NotImplementedError
 
 
 class MultiStepMethod:
     """
-    Base class for explicit multi-step ODE solving methods.
+    Base class for explicit multi-step methods for ODE solving. Override this class and its methods
+    to make your own custom multi-step functions.
+
+    Multi-step methods are defined by two sets of coefficients, commonly denoted a and b in numerical
+    literature. For more information and sample methods, see
+    https://en.wikipedia.org/wiki/Linear_multistep_method.
     """
 
     def __init__(self,
@@ -74,7 +122,17 @@ class MultiStepMethod:
                  b_coeffs: np.ndarray,
                  order: int = 0,
                  reverse: bool = True):
+        """
+        Base MultiStepMethod constructor.
 
+        Args:
+            startup: SingleStepMethod used to compute the startup data.
+            a_coeffs: Array of a-coefficients of the method.
+            b_coeffs: Array of b-coefficients of the method.
+            order: Order of the method.
+            reverse: Whether to reverse the coefficient arrays. Set this to True if you are copying
+             coefficient sets e.g. from Wikipedia, as they usually count the states in reverse.
+        """
         self.order = order
 
         # startup calculation variables, only for multi-step methods
@@ -99,10 +157,31 @@ class MultiStepMethod:
 
     @staticmethod
     def get_data_from_state(state: ModelState):
+        """
+        Custom member function for getting the raw numpy-compatible data from a ModelState object.
+        Override this if you intend to use a custom state type such as a NamedTuple.
+
+        Args:
+            state: State object holding the numpy-compatible data.
+
+        Returns:
+            Raw numpy-compatible state data for use in the forward member function.
+        """
         return state
 
     @staticmethod
     def make_new_state(t: StateVariable, y: StateVariable) -> ModelState:
+        """
+        Custom function for constructing a new state from numpy data.
+        Override this if you intend to use a custom state type such as a NamedTuple.
+
+        Args:
+            t: Time variable at the new state.
+            y: Spatial variable at the new state.
+
+        Returns:
+            A new state object holding the raw data.
+        """
         return t, y
 
     def _adjust_dims(self, y: StateVariable):
@@ -125,18 +204,32 @@ class MultiStepMethod:
         self._cache_idx += 1
 
     def reset(self):
-        # Resets the run so that next time the step function is called,
-        # new startup values will be calculated with the saved startup step
-        # function. Useful if the step function is supposed to be reused in
-        # multiple non-consecutive runs.
+        """
+        Resets the step function so that next time the multi-step method is called,
+        new startup values will be calculated with the saved startup step
+        function. Useful if the multi-step method will be reused in
+        multiple non-consecutive runs with different model dimensions.
+        """
         self.ready = False
         self._cache_idx = 1
 
-    def perform_startup_calculation(self,
-                                    model: ODEModel,
-                                    state: ModelState,
-                                    h: float,
-                                    **kwargs):
+    def _perform_startup_calculation(self,
+                                     model: ODEModel,
+                                     state: ModelState,
+                                     h: float,
+                                     **kwargs):
+        """
+        Performs the startup calculation using the startup step function supplied at construction.
+        Some startup values need to be computed in the first step in order to obtain enough starting
+        values for the multi-step procedure. The number of startup steps is dependent on the number of
+        stages in the method.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+        """
 
         t, y = self.get_data_from_state(state=state)
 
@@ -159,7 +252,7 @@ class MultiStepMethod:
         self.ready = True
         self._increment_cache_idx()
 
-    def get_cached_state(self):
+    def _get_cached_state(self):
         idx = self._cache_idx
         self._increment_cache_idx()
         return self.make_new_state(t=self.t_cache[idx], y=self.y_cache[idx])
@@ -169,19 +262,51 @@ class MultiStepMethod:
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+        """
+        Main method to advance an ODE in time by computing a new state with a multi-step method.
+        Override this to define your own multi-step functions.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+
+        Returns:
+            A new state containing the ODE model data at time t+h.
+        """
         raise NotImplementedError
 
 
 class ExplicitRungeKuttaMethod(SingleStepMethod):
+    """
+    Base class template for explicit Runge-Kutta (RK) methods.
+
+    A Runge-Kutta method is a generalized s-stage algorithm for advancing an ODE in time.
+    It is defined by three sets of coefficients commonly called a Butcher tableau.
+    An explicit Runge-Kutta method is characterized by a strictly lower-diagonal b-coefficient matrix.
+
+    For more information on Runge-Kutta methods and the Butcher tableau, see
+    https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods.
+    """
     def __init__(self,
                  alphas: np.ndarray,
                  betas: np.ndarray,
                  gammas: np.ndarray,
                  order: int = 0):
+        """
+        Explicit Runge-Kutta method constructor.
+
+        Args:
+            alphas: Alpha- or a-array in the Butcher tableau (commonly the left column).
+            betas: Beta- or b-matrix in the Butcher tableau (commonly in the upper right).
+            gammas: Gamma- or c-array in the Butcher tableau (commonly the bottom row).
+            order: Order of the resulting explicit RK method.
+        """
 
         super(ExplicitRungeKuttaMethod, self).__init__(order=order)
 
-        self.validate_butcher_tableau(alphas=alphas, betas=betas, gammas=gammas)
+        self._validate_butcher_tableau(alphas=alphas, betas=betas, gammas=gammas)
 
         self.alphas = alphas
         self.betas = betas
@@ -190,9 +315,9 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
         self.k = np.zeros(betas.shape[0])
 
     @staticmethod
-    def validate_butcher_tableau(alphas: np.ndarray,
-                                 betas: np.ndarray,
-                                 gammas: np.ndarray) -> None:
+    def _validate_butcher_tableau(alphas: np.ndarray,
+                                  betas: np.ndarray,
+                                  gammas: np.ndarray) -> None:
         _error_msg = []
         if len(alphas) != len(gammas):
             _error_msg.append("Alpha and gamma vectors are not the same length")
@@ -217,6 +342,23 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+        """
+        Main method to advance an ODE in time by computing a new state with a
+        multi-stage explicit Runge-Kutta method.
+
+        This function is templated and not meant to be directly overridden. If you want more
+        control over your step function, consider implementing an explicit RK method by subclassing the
+        ``SingleStepMethod`` class.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+
+        Returns:
+            A new state containing the ODE model data at time t+h.
+        """
 
         t, y = self.get_data_from_state(state=state)
 
@@ -235,12 +377,36 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
 
 class ImplicitRungeKuttaMethod(SingleStepMethod):
+    """
+    Base class template for implicit Runge-Kutta (RK) methods.
+
+    A Runge-Kutta method is a generalized s-stage algorithm for advancing an ODE in time.
+    It is defined by three sets of coefficients commonly called a Butcher tableau.
+
+    An implicit Runge-Kutta method incurs generally much more computational effort than an explicit one,
+    as a non-linear system of equations needs to be solved in each step. However, implicit methods
+    have better properties when used on stiff equations, and can achieve very high order with a
+    comparably low number of stages s.
+
+    For more information on implicit Runge-Kutta methods and the Butcher tableau, see
+    https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods#Implicit_Runge%E2%80%93Kutta_methods.
+    """
     def __init__(self,
                  alphas: np.ndarray,
                  betas: np.ndarray,
                  gammas: np.ndarray,
                  order: int = 0,
                  **kwargs):
+        """
+        Implicit Runge-Kutta method constructor.
+
+        Args:
+            alphas: Alpha- or a-array in the Butcher tableau (commonly the left column).
+            betas: Beta- or b-matrix in the Butcher tableau (commonly in the upper right).
+            gammas: Gamma- or c-array in the Butcher tableau (commonly the bottom row).
+            order: Order of the resulting implicit RK method.
+            **kwargs: Additional keyword arguments used in the call to scipy.optimize.root.
+        """
 
         super(ImplicitRungeKuttaMethod, self).__init__(order=order)
 
@@ -273,7 +439,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
         if betas.shape[0] == 1:
             _error_msg.append("You have supplied a single-stage implicit RK method. Please use the "
-                              "builtin BackwardEuler class instead.")
+                              "builtin BackwardEulerMethod class instead.")
 
         if _error_msg:
             raise ValueError("An error occurred while validating the input "
@@ -285,6 +451,23 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+        """
+        Main method to advance an ODE in time by computing a new state with a
+        multi-stage implicit Runge-Kutta method.
+
+        This function is templated and not meant to be directly overridden. If you want more
+        control over your step function, consider implementing an implicit RK method by subclassing the
+        ``SingleStepMethod`` class instead.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+
+        Returns:
+            A new state containing the ODE model data at time t+h.
+        """
 
         t, y = self.get_data_from_state(state=state)
 
@@ -320,7 +503,16 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
 class ExplicitMultiStepMethod(MultiStepMethod):
     """
-    Base class for explicit multi-step ODE solving methods.
+    Base class for explicit multi-step methods for ODE solving.
+
+    In contrast to a single-step method, a linear multi-step method uses multiple past values
+    to compute a new ODE state.
+
+    An explicit multi-step method is characterized by a trivial array of a-coefficients. The most
+    prominent example of an explicit multi-step method is the class of Adams-Bashforth methods.
+
+    For more information on linear multi-step methods and sample coefficient sets, see
+    https://en.wikipedia.org/wiki/Linear_multistep_method.
     """
 
     def __init__(self,
@@ -329,6 +521,17 @@ class ExplicitMultiStepMethod(MultiStepMethod):
                  b_coeffs: np.ndarray,
                  order: int = 0,
                  reverse: bool = True):
+        """
+        Base ExplicitMultiStepMethod constructor.
+
+        Args:
+            startup: Single-step method used to compute the startup values.
+            a_coeffs: Array of a-coefficients. Unused for explicit multi-step methods.
+            b_coeffs: Array of b-coefficients.
+            order: Order of the resulting explicit multi-step method.
+            reverse: Whether to reverse the coefficient arrays. Set this to True if you are copying
+             coefficient sets e.g. from Wikipedia, as they usually count the states in reverse.
+        """
 
         super(ExplicitMultiStepMethod, self).__init__(startup=startup,
                                                       a_coeffs=a_coeffs,
@@ -341,20 +544,38 @@ class ExplicitMultiStepMethod(MultiStepMethod):
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+        """
+        Main method to advance an ODE in time by computing a new state with an explicit
+        multi-step method.
+
+        This function is templated and not meant to be directly overridden. If you want more
+        control over your step function, consider implementing an explicit multi-step method
+        by subclassing the ``SingleStepMethod`` class instead.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+
+        Returns:
+            A new state containing the ODE model data at time t+h.
+        """
+
         if not self.ready:
             # startup calculation to the multi-step method,
             # fills the y-, t- and f-caches
-            self.perform_startup_calculation(model=model,
-                                             state=state,
-                                             h=h,
-                                             **kwargs)
+            self._perform_startup_calculation(model=model,
+                                              state=state,
+                                              h=h,
+                                              **kwargs)
 
             return self.make_new_state(self.t_cache[1], self.y_cache[1])
 
         t, y = self.get_data_from_state(state=state)
 
         if self._cache_idx < self.num_previous:
-            return self.get_cached_state()
+            return self._get_cached_state()
 
         y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
 
@@ -366,7 +587,17 @@ class ExplicitMultiStepMethod(MultiStepMethod):
 
 class ImplicitMultiStepMethod(MultiStepMethod):
     """
-    Adams-Bashforth Method of order 2 for ODE solving.
+    Base class for explicit multi-step methods for ODE solving.
+
+    In contrast to a single-step method, a linear multi-step method uses multiple past values
+    to compute a new ODE state.
+
+    An explicit multi-step method is characterized by a trivial array of a-coefficients. The most
+    prominent examples of implicit multi-step methods are the Adams-Moulton methods and the
+    backward differentiation formulas (BDFs).
+
+    For more information on linear multi-step methods and sample coefficient sets, see
+    https://en.wikipedia.org/wiki/Linear_multistep_method.
     """
 
     def __init__(self,
@@ -376,6 +607,18 @@ class ImplicitMultiStepMethod(MultiStepMethod):
                  order: int = 0,
                  reverse: bool = True,
                  **kwargs):
+        """
+        ImplicitMultiStepMethod constructor.
+
+        Args:
+            startup: Single-step method used to compute the startup values.
+            a_coeffs: Array of a-coefficients. Unused for explicit multi-step methods.
+            b_coeffs: Array of b-coefficients.
+            order: Order of the resulting explicit multi-step method.
+            reverse: Whether to reverse the coefficient arrays. Set this to True if you are copying
+             coefficient sets e.g. from Wikipedia, as they usually count the states in reverse.
+            **kwargs: Additional keyword arguments used in the call to scipy.optimize.root.
+        """
 
         super(ImplicitMultiStepMethod, self).__init__(startup=startup,
                                                       a_coeffs=a_coeffs,
@@ -391,14 +634,31 @@ class ImplicitMultiStepMethod(MultiStepMethod):
                 state: ModelState,
                 h: float,
                 **kwargs) -> ModelState:
+        """
+        Main method to advance an ODE in time by computing a new state with an implicit
+        multi-step method.
+
+        This function is templated and not meant to be directly overridden. If you want more
+        control over your step function, consider implementing an implicit multi-step method by
+        subclassing the ``SingleStepMethod`` class instead.
+
+        Args:
+            model: ODEModel object implementing the ODE model.
+            state: Input state.
+            h: Step size to use in the step function.
+            **kwargs: Additional keyword arguments, unused for now.
+
+        Returns:
+            A new state containing the ODE model data at time t+h.
+        """
 
         if not self.ready:
             # startup calculation to the multi-step method,
             # fills the state and f-caches
-            self.perform_startup_calculation(model=model,
-                                             state=state,
-                                             h=h,
-                                             **kwargs)
+            self._perform_startup_calculation(model=model,
+                                              state=state,
+                                              h=h,
+                                              **kwargs)
 
             # first cached value
             return self.make_new_state(self.t_cache[1], self.y_cache[1])
@@ -408,7 +668,7 @@ class ImplicitMultiStepMethod(MultiStepMethod):
         t, y = self.get_data_from_state(state=state)
 
         if self._cache_idx < self.num_previous:
-            return self.get_cached_state()
+            return self._get_cached_state()
 
         def F(x: StateVariable) -> StateVariable:
             return x + np.dot(self.a_coeffs, self.y_cache) - h * b * model(t + h, x)

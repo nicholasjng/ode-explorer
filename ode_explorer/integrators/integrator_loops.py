@@ -1,10 +1,11 @@
 import logging
 from typing import Any, List, Dict, Text
+
 from tqdm import trange
 
+from ode_explorer import defaults
 from ode_explorer.callbacks import Callback
 from ode_explorer.constants import RunKeys, RunConfigKeys
-from ode_explorer import defaults
 from ode_explorer.metrics import Metric
 from ode_explorer.models import ODEModel
 from ode_explorer.stepfunctions import StepFunction
@@ -26,7 +27,6 @@ def constant_h_loop(run: Dict[Text, Any],
                     metrics: List[Metric],
                     progress_bar: bool = False,
                     sc: StepSizeController = None):
-
     # callbacks and metrics
     callbacks = callbacks or []
     metrics = metrics or []
@@ -78,7 +78,6 @@ def dynamic_h_loop(run: Dict[Text, Any],
                    metrics: List[Metric],
                    sc: StepSizeController = None,
                    progress_bar: bool = False):
-
     # callbacks and metrics
     callbacks = callbacks or []
     metrics = metrics or []

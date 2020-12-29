@@ -6,4 +6,3 @@ INITIAL_H = 0.01
 # and Hamiltonian systems
 standard_rhs = ["t", "y"]
 hamiltonian_rhs = ["t", "q", "p"]
-

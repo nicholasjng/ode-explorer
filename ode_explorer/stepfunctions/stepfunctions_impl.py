@@ -24,7 +24,7 @@ def heun_impl(model: ODEModel, t: StateVariable, y: StateVariable, h: float, k: 
     hs = np.ones(2) * 0.5 * h
 
     k[0] = model(t, y)
-    k[1] = model(t + h, k[0])
+    k[1] = model(t + h, y + h * k[0])
     return y + np.dot(hs, k)
 
 

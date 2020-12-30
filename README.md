@@ -15,6 +15,17 @@ system's own Python installation. A popular option for working with virtual envi
 [virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/).
 
 
+# Quickstart with Examples
+
+Check out the ``ode_explorer.examples`` folder for a quick demonstration of a few of the basic functionalities of this package. More will be gradually added - if you have a suggestion, or you want to contribute your own, feel free to send me a message!
+
+To install Jupyter Notebook or Jupyter Lab, run the following inside your created virtual environment:
+```
+pip install notebook    ## <---- for Jupyter Notebook
+pip install jupyterlab  ## <---- for Jupyter Lab
+```
+
+
 # Introduction and first steps
 
 ## Models
@@ -62,16 +73,6 @@ The same applies to *metrics* (with the corresponding ``Metric`` interface), whi
 
 Step size control is something like an art form - you can use the built-in ``StepSizeController`` interface to build your own. 
 
-
-# Quickstart with Examples
-
-Check out the ``ode_explorer.examples`` folder for a quick demonstration of a few of the basic functionalities of this package. More will be gradually added - if you have a suggestion, or you want to contribute your own, feel free to send me a message!
-
-To install Jupyter Notebook or Jupyter Lab, run the following inside your created virtual environment:
-```
-pip install notebook    ## <---- for Jupyter Notebook
-pip install jupyterlab  ## <---- for Jupyter Lab
-```
 # Testing
 
 Testing is still a work in progress, but will be added gradually.

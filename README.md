@@ -5,23 +5,14 @@ of systems of ordinary differential equations (ODEs).
 
 # Installation
 
-After obtaining this repository, for example by ``git clone``ing it,
-navigate to the folder and run ``pip install`` on it:
-
+This project is listed on PyPI, the Python Package Index. To obtain it via PyPI, run
 ```
-## making / activating a virtual environment in the first place
-## example here uses virtualenvwrapper
-
-mkvirtualenv odeexplorer
-git clone https://github.com/njunge94/ode-explorer.git
-cd ode-explorer
-pip install -r requirements.txt
-pip install .
+pip install ode-explorer
 ```
 
 It is very much advised to do this inside of a virtual environment to avoid bloating your 
 system's own Python installation. A popular option for working with virtual environments is 
-[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/), which is also used in the installation example above.
+[virtualenvwrapper](https://virtualenvwrapper.readthedocs.io/en/latest/).
 
 
 # Introduction and first steps
@@ -56,12 +47,12 @@ ode-explorer provides a ``StepFunction`` Interface that is built exactly for thi
 1. Subclass the ``StepFunction`` base class and override its ``forward`` method to calculate the estimate.
 2. Initialize one of the template classes in ``ode_explorer.stepfunctions.templates`` with your chosen arguments.
 
-Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multistep methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.stepfunctions.templates``. 
+Since most step functions originate from families of methods (e.g. explicit/implicit RK methods, linear multi-step methods), they can be templated rather well - templates for some of the most common step function families are given in ``ode_explorer.stepfunctions.templates``. 
 
 
 ## Callbacks and metrics
 
-The main strong point / value of this library is that you can heavily customize your experiments to your liking. Two of the main instruments for this are callbacks and metrics.
+The main design emphasis of this library is that you can heavily customize your experiments to your liking. Two of the main instruments for this are callbacks and metrics.
 
 *Callbacks* are designed to hook into the control flow of the numerical integration; ode-explorer exposes a ``Callback`` interface which is basically a callable with state. This concept may be familiar to users of ML libraries of scikit-learn and Tensorflow, which were the main inspiration behind this. You can do many things with callbacks, like logging, broadcasting your solver's intermittent results via websocket, check for NaN values - this is where your creativity comes in!
 
@@ -72,25 +63,25 @@ The same applies to *metrics* (with the corresponding ``Metric`` interface), whi
 Step size control is something like an art form - you can use the built-in ``StepSizeController`` interface to build your own. 
 
 
-# Demos [WIP]
+# Quickstart with Examples
 
-Check out the ``demo`` folder for some demonstrations of the package - most of them are quick and easy Jupyter Notebook examples. More will be gradually added - if you have a suggestion or you want to contribute your own, feel free to send me a message!
+Check out the ``ode_explorer.examples`` folder for a quick demonstration of a few of the basic functionalities of this package. More will be gradually added - if you have a suggestion, or you want to contribute your own, feel free to send me a message!
 
-To install Jupyter Notebook or Jupyter Lab, run the following inside of your created virtual environment:
+To install Jupyter Notebook or Jupyter Lab, run the following inside your created virtual environment:
 ```
 pip install notebook    ## <---- for Jupyter Notebook
 pip install jupyterlab  ## <---- for Jupyter Lab
 ```
-# Testing [WIP]
+# Testing
 
-Any numerical software should be tested extensively - not just for exception safety, but also for making sure it produces quality results. Testing is still very much a work in progress, but will be added gradually.
+Testing is still a work in progress, but will be added gradually.
 
-# Planned features [WIP]
+# Planned features for upcoming releases
 
 Some more feature plans that are in the mix for this library:
 
 * Visualizations, Dashboard
-* GPU support with JAX / XLA
+* GPU support using JAX / XLA
 * More builtin callbacks / metrics
 * Boundary value problems (BVPs)
 * Differential-Algebraic Equations (DAEs)

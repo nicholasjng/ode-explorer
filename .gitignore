@@ -29,3 +29,6 @@ build
 
 # some local test stuff
 unused_files
+
+# Pypi packaging
+dist

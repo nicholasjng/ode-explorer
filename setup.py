@@ -10,7 +10,7 @@ setuptools.setup(
     version=PACKAGE_VERSION,
     author=PACKAGE_AUTHOR,
     author_email="nicho.junge@gmail.com",
-    description="A small Python package for ODE Solving",
+    description="A small Python package for ODE solving and mathematical modelling.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/njunge94/ode-explorer",

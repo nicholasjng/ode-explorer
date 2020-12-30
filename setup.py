@@ -35,7 +35,7 @@ setuptools.setup(
     install_requires=[
         "absl-py",
         "pandas",
-        "numpy"
+        "numpy",
         "scipy",
         "tqdm",
         "tabulate"

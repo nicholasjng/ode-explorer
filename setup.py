@@ -32,4 +32,12 @@ setuptools.setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     python_requires='>=3.6',
+    install_requires=[
+        "absl-py",
+        "pandas",
+        "numpy"
+        "scipy",
+        "tqdm",
+        "tabulate"
+    ]
 )

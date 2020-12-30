@@ -5,7 +5,7 @@ name: Upload ode-explorer Python Package to PyPI
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   deploy:

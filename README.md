@@ -17,16 +17,17 @@ system's own Python installation. A popular option for working with virtual envi
 
 # Quickstart with Examples
 
-Check out the ``ode_explorer.examples`` folder for a quick demonstration of a few of the basic functionalities of this package. More will be gradually added - if you have a suggestion, or you want to contribute your own, feel free to send me a message!
+For a very quick introduction to the main functionalities of this package, check out the ``ode_explorer.examples`` folder. More examples will be gradually added - if you have a suggestion, or you want to contribute your own, feel free to send me a message!
 
-To install Jupyter Notebook or Jupyter Lab, run the following inside your created virtual environment:
+Some of the examples require a Jupyter installation. To install Jupyter Notebook or Jupyter Lab, run the following inside your created virtual environment:
 ```
 pip install notebook    ## <---- for Jupyter Notebook
 pip install jupyterlab  ## <---- for Jupyter Lab
 ```
+It may also be required to install matplotlib for visualization, which can be done by running ``pip install matplotlib``.
 
 
-# Introduction and first steps
+# Introduction and main functionalities
 
 ## Models
 

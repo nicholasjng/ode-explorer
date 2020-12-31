@@ -1,3 +1,13 @@
+# ode-explorer
+
+<div align="center">
+  
+![PyPI - License](https://img.shields.io/pypi/l/ode-explorer?color=red)
+![PyPI](https://img.shields.io/pypi/v/ode-explorer?color=blue)
+[![Downloads](https://pepy.tech/badge/ode-explorer)](https://pepy.tech/project/ode-explorer)
+  
+</div>
+
 This is the ode-explorer Python package,
 a small library designed for solving, fast prototyping and visualization
 of systems of ordinary differential equations (ODEs).

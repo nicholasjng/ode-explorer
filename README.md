@@ -2,8 +2,8 @@
 
 <div align="center">
   
-![PyPI - License](https://img.shields.io/pypi/l/ode-explorer?color=red)
-![PyPI](https://img.shields.io/pypi/v/ode-explorer?color=blue)
+[![PyPI - License](https://img.shields.io/pypi/l/ode-explorer?color=red)](https://pypi.org/project/ode-explorer/)
+[![PyPI](https://img.shields.io/pypi/v/ode-explorer?color=blue)](https://pypi.org/project/ode-explorer/)
 [![Downloads](https://pepy.tech/badge/ode-explorer/month)](https://pepy.tech/project/ode-explorer)
   
 </div>

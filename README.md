@@ -4,7 +4,7 @@
   
 [![PyPI - License](https://img.shields.io/pypi/l/ode-explorer?color=red)](https://pypi.org/project/ode-explorer/)
 [![PyPI](https://img.shields.io/pypi/v/ode-explorer?color=blue)](https://pypi.org/project/ode-explorer/)
-[![Downloads](https://pepy.tech/badge/ode-explorer/month)](https://pepy.tech/project/ode-explorer)
+[![Downloads](https://static.pepy.tech/personalized-badge/ode-explorer?period=total&units=international_system&left_color=black&right_color=yellow&left_text=Downloads)](https://pepy.tech/project/ode-explorer)
   
 </div>
 

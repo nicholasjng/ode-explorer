@@ -1,4 +1,5 @@
-import numpy as np
+import jax
+import jax.numpy as jnp
 
 from ode_explorer.stepfunctions import *
 from ode_explorer.models import ODEModel
@@ -6,21 +7,21 @@ from ode_explorer.integrators import Integrator
 from ode_explorer.stepsize_control import DOPRI45Controller
 from ode_explorer.metrics import DistanceToSolution
 
-y_0_scalar = 1.0
-y_0_vec = np.ones(10)
+y_0_scalar = jnp.array(1.0)
+y_0_vec = jnp.ones(10)
 lamb = 0.5
 
 
-def ode_func(t: float, y: Union[float, np.ndarray], lamb: float = 0.5):
+def ode_func(t: jnp.array, y: jnp.array, lamb: float = 0.5):
     return - lamb * y
 
 
 def sol_scalar(t):
-    return y_0_scalar * np.exp(-lamb * t)
+    return y_0_scalar * jnp.exp(-lamb * t)
 
 
 def sol_vec(t):
-    return y_0_vec * np.exp(-lamb * t)
+    return y_0_vec * jnp.exp(-lamb * t)
 
 
 def main():
@@ -29,11 +30,11 @@ def main():
     model = ODEModel(ode_fn=ode_func, fn_args={"lamb": lamb})
 
     step_list = [ForwardEulerMethod(),
-                 HeunMethod(),
-                 RungeKutta4(),
-                 BackwardEulerMethod(),
-                 AdamsBashforth2(startup=ForwardEulerMethod()),
-                 BDF2(startup=ForwardEulerMethod())]
+                 HeunMethod(), ]
+                 # RungeKutta4(),
+                 # BackwardEulerMethod(),
+                 # AdamsBashforth2(startup=ForwardEulerMethod()),
+                 # BDF2(startup=ForwardEulerMethod())]
 
     integrator = Integrator()
 
@@ -47,28 +48,28 @@ def main():
                                        step_func=step_func,
                                        initial_state=initial_state,
                                        h=0.001,
-                                       max_steps=10000,
+                                       max_steps=1000,
                                        verbosity=1,
-                                       progress_bar=True,
-                                       metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
+                                       progress_bar=True)
+                                       # metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
 
-            metrics = integrator.return_metrics(run_id="latest")
+            # metrics = integrator.return_metrics(run_id="latest")
 
-            print(metrics.describe())
+            # print(metrics.describe())
 
-        integrator.integrate_adaptively(model=model,
-                                        step_func=DOPRI45(),
-                                        sc=DOPRI45Controller(atol=1e-9),
-                                        initial_state=initial_state,
-                                        initial_h=0.001,
-                                        verbosity=1,
-                                        end=10.0,
-                                        progress_bar=True,
-                                        metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
-
-        metrics = integrator.return_metrics(run_id="latest")
-
-        print(metrics.describe())
+        # integrator.integrate_adaptively(model=model,
+        #                                 step_func=DOPRI45(),
+        #                                 sc=DOPRI45Controller(atol=1e-9),
+        #                                 initial_state=initial_state,
+        #                                 initial_h=0.001,
+        #                                 verbosity=1,
+        #                                 end=10.0,
+        #                                 progress_bar=True,
+        #                                 metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
+        #
+        # metrics = integrator.return_metrics(run_id="latest")
+        #
+        # print(metrics.describe())
 
 
 if __name__ == "__main__":

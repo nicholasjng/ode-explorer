@@ -1,7 +1,5 @@
-from typing import Tuple, Union
+from typing import Tuple
 
-import numpy as np
+import jax.numpy as jnp
 
-StateVariable = Union[float, np.ndarray]
-
-ModelState = Tuple[StateVariable, ...]
+ModelState = Tuple[jnp.array, ...]

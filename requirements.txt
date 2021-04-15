@@ -1,5 +1,5 @@
-absl-py
-numpy
+jax
+jaxlib
 pandas
 tqdm
 scipy

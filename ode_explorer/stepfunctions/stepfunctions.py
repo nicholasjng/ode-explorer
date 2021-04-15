@@ -1,6 +1,6 @@
 from typing import Tuple
 
-import numpy as np
+import jax.numpy as jnp
 
 from ode_explorer.models import ODEModel, HamiltonianSystem
 from ode_explorer.stepfunctions.stepfunctions_impl import *
@@ -48,7 +48,6 @@ class HeunMethod(SingleStepMethod):
         super(HeunMethod, self).__init__(order=2)
         self.num_stages = 2
         self.model_dim = 1
-        self.k = np.zeros(self.num_stages)
 
     def forward(self,
                 model: ODEModel,
@@ -56,9 +55,6 @@ class HeunMethod(SingleStepMethod):
                 h: float,
                 **kwargs) -> ModelState:
         t, y = self.get_data_from_state(state=state)
-
-        if self._get_shape(y) != self.k.shape:
-            self._adjust_dims(y)
 
         y_new = heun_impl(model=model, t=t, y=y, h=h, k=self.k)
 
@@ -74,7 +70,7 @@ class RungeKutta4(SingleStepMethod):
         super(RungeKutta4, self).__init__(order=4)
 
         self.num_stages = 4
-        self.k = np.zeros(self.num_stages)
+        self.k = jnp.zeros(self.num_stages)
         self.model_dim = 1
 
     def forward(self,
@@ -102,20 +98,20 @@ class DOPRI45(SingleStepMethod):
     def __init__(self):
         super(DOPRI45, self).__init__(order=5)
         self.num_stages = 7
-        self.k = np.zeros(self.num_stages)
+        self.k = jnp.zeros(self.num_stages)
         self.model_dim = 1
 
         # RK-specific variables
-        self.alphas = np.array([0.2, 0.3, 0.8, 8 / 9, 1.0, 1.0])
-        self.betas = [np.array([0.2]),
-                      np.array([3 / 40, 9 / 40]),
-                      np.array([44 / 45, -56 / 15, 32 / 9]),
-                      np.array([19372 / 6561, -25360 / 2187, 64448 / 6561, -212 / 729]),
-                      np.array([9017 / 3168, -355 / 33, 46732 / 5247, 49 / 176, -5103 / 18656]),
-                      np.array([35 / 384, 0.0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84])]
+        self.alphas = jnp.array([0.2, 0.3, 0.8, 8 / 9, 1.0, 1.0])
+        self.betas = [jnp.array([0.2]),
+                      jnp.array([3 / 40, 9 / 40]),
+                      jnp.array([44 / 45, -56 / 15, 32 / 9]),
+                      jnp.array([19372 / 6561, -25360 / 2187, 64448 / 6561, -212 / 729]),
+                      jnp.array([9017 / 3168, -355 / 33, 46732 / 5247, 49 / 176, -5103 / 18656]),
+                      jnp.array([35 / 384, 0.0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84])]
 
         # First same as last (FSAL) rule
-        self.gammas = np.array([5179 / 57600, 0.0, 7571 / 16695, 393 / 640, -92097 / 339200, 187 / 2100, 1 / 40])
+        self.gammas = jnp.array([5179 / 57600, 0.0, 7571 / 16695, 393 / 640, -92097 / 339200, 187 / 2100, 1 / 40])
 
     def forward(self,
                 model: ODEModel,
@@ -171,8 +167,8 @@ class AdamsBashforth2(ExplicitMultiStepMethod):
     """
 
     def __init__(self, startup: SingleStepMethod):
-        a_coeffs = np.ones(1)
-        b_coeffs = np.array([1.5, -0.5])
+        a_coeffs = jnp.ones(1)
+        b_coeffs = jnp.array([1.5, -0.5])
         super(AdamsBashforth2, self).__init__(order=2,
                                               startup=startup,
                                               a_coeffs=a_coeffs,
@@ -243,8 +239,8 @@ class BDF2(ImplicitMultiStepMethod):
     """
 
     def __init__(self, startup: SingleStepMethod):
-        a_coeffs = np.array([-4 / 3, 1 / 3])
-        b_coeffs = np.array([2 / 3])
+        a_coeffs = jnp.array([-4 / 3, 1 / 3])
+        b_coeffs = jnp.array([2 / 3])
         super(BDF2, self).__init__(order=2,
                                    startup=startup,
                                    a_coeffs=a_coeffs,

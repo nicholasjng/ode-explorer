@@ -1,10 +1,10 @@
 import logging
 
-import numpy as np
+import jax.numpy as jnp
 from scipy.optimize import root
 
 from ode_explorer.models import BaseModel, ODEModel
-from ode_explorer.types import StateVariable, ModelState
+from ode_explorer.types import ModelState
 from ode_explorer.utils.helpers import is_scalar
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,12 @@ class SingleStepMethod:
         self.order = order
         self.model_dim = 0
         self.num_stages = 0
+        self.k = None
 
-    def _adjust_dims(self, y: StateVariable):
+    def initialize_k(self, state_vector: jnp.array):
+        self.k = jnp.zeros((self.num_stages, state_vector.size))
+
+    def _adjust_dims(self, y: jnp.array):
         scalar_ode = is_scalar(y)
 
         if scalar_ode:
@@ -45,9 +49,9 @@ class SingleStepMethod:
             shape = (self.num_stages, model_dim)
 
         self.model_dim = model_dim
-        self.k = np.zeros(shape=shape)
+        self.k = jnp.zeros(shape=shape)
 
-    def _get_shape(self, y: StateVariable):
+    def _get_shape(self, y: jnp.array):
         return (self.num_stages,) if is_scalar(y) else (self.num_stages, len(y))
 
     @staticmethod
@@ -65,7 +69,7 @@ class SingleStepMethod:
         return state
 
     @staticmethod
-    def make_new_state(t: StateVariable, y: StateVariable) -> ModelState:
+    def make_new_state(t: jnp.array, y: jnp.array) -> ModelState:
         """
         Custom function for constructing a new state from numpy data.
         Override this if you intend to use a custom state type such as a NamedTuple.
@@ -118,8 +122,8 @@ class MultiStepMethod:
 
     def __init__(self,
                  startup: SingleStepMethod,
-                 a_coeffs: np.ndarray,
-                 b_coeffs: np.ndarray,
+                 a_coeffs: jnp.array,
+                 b_coeffs: jnp.array,
                  order: int = 0,
                  reverse: bool = True):
         """
@@ -141,8 +145,8 @@ class MultiStepMethod:
         self.startup = startup
 
         if reverse:
-            self.a_coeffs = np.flip(a_coeffs)
-            self.b_coeffs = np.flip(b_coeffs)
+            self.a_coeffs = jnp.flip(a_coeffs)
+            self.b_coeffs = jnp.flip(b_coeffs)
         else:
             self.a_coeffs = a_coeffs
             self.b_coeffs = b_coeffs
@@ -151,9 +155,9 @@ class MultiStepMethod:
         self.num_previous = max(len(b_coeffs), len(a_coeffs))
 
         # side cache for additional steps
-        self.f_cache = np.zeros(self.num_previous)
-        self.t_cache = np.zeros(self.num_previous)
-        self.y_cache = np.zeros(self.num_previous)
+        self.f_cache = jnp.zeros(self.num_previous)
+        self.t_cache = jnp.zeros(self.num_previous)
+        self.y_cache = jnp.zeros(self.num_previous)
 
     @staticmethod
     def get_data_from_state(state: ModelState):
@@ -170,7 +174,7 @@ class MultiStepMethod:
         return state
 
     @staticmethod
-    def make_new_state(t: StateVariable, y: StateVariable) -> ModelState:
+    def make_new_state(t: jnp.array, y: jnp.array) -> ModelState:
         """
         Custom function for constructing a new state from numpy data.
         Override this if you intend to use a custom state type such as a NamedTuple.
@@ -184,7 +188,7 @@ class MultiStepMethod:
         """
         return t, y
 
-    def _adjust_dims(self, y: StateVariable):
+    def _adjust_dims(self, y: jnp.array):
         if is_scalar(y):
             model_dim = 1
             shape = (self.num_previous,)
@@ -194,10 +198,10 @@ class MultiStepMethod:
             shape = (self.num_previous, model_dim)
 
         self.model_dim = model_dim
-        self.f_cache = np.zeros(shape=shape)
-        self.y_cache = np.zeros(shape=shape)
+        self.f_cache = jnp.zeros(shape=shape)
+        self.y_cache = jnp.zeros(shape=shape)
 
-    def _get_shape(self, y: StateVariable):
+    def _get_shape(self, y: jnp.array):
         return (self.num_previous,) if is_scalar(y) else (self.num_previous, len(y))
 
     def _increment_cache_idx(self):
@@ -290,9 +294,9 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods.
     """
     def __init__(self,
-                 alphas: np.ndarray,
-                 betas: np.ndarray,
-                 gammas: np.ndarray,
+                 alphas: jnp.array,
+                 betas: jnp.array,
+                 gammas: jnp.array,
                  order: int = 0):
         """
         Explicit Runge-Kutta method constructor.
@@ -312,12 +316,12 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.k = np.zeros(betas.shape[0])
+        self.k = jnp.zeros(betas.shape[0])
 
     @staticmethod
-    def _validate_butcher_tableau(alphas: np.ndarray,
-                                  betas: np.ndarray,
-                                  gammas: np.ndarray) -> None:
+    def _validate_butcher_tableau(alphas: jnp.array,
+                                  betas: jnp.array,
+                                  gammas: jnp.array) -> None:
         _error_msg = []
         if len(alphas) != len(gammas):
             _error_msg.append("Alpha and gamma vectors are not the same length")
@@ -327,13 +331,13 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
                               "dimension as the alphas/gammas arrays")
 
         # for an explicit method, betas must be lower triangular
-        if not np.allclose(betas, np.tril(betas, k=-1)):
+        if not jnp.allclose(betas, jnp.tril(betas, k=-1)):
             _error_msg.append("The beta matrix has to be lower triangular for "
                               "an explicit Runge-Kutta method, i.e. "
                               "b_ij = 0 for i <= j")
 
         if _error_msg:
-            raise ValueError("An error occurred while validating the input "
+            raise ValueError("An error occurred while validating the Input "
                              "Butcher tableau. More information: "
                              "{}.".format(",".join(_error_msg)))
 
@@ -369,9 +373,9 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         for i in range(1, self.num_stages):
             # first row of betas is a zero row because it is an explicit RK
-            self.k[i] = model(t + h * self.alphas[i], y + h * np.dot(self.betas[i], self.k))
+            self.k[i] = model(t + h * self.alphas[i], y + h * jnp.dot(self.betas[i], self.k))
 
-        y_new = y + h * np.dot(self.gammas, self.k)
+        y_new = y + h * jnp.dot(self.gammas, self.k)
 
         return self.make_new_state(t=t + h, y=y_new)
 
@@ -392,9 +396,9 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods#Implicit_Runge%E2%80%93Kutta_methods.
     """
     def __init__(self,
-                 alphas: np.ndarray,
-                 betas: np.ndarray,
-                 gammas: np.ndarray,
+                 alphas: jnp.array,
+                 betas: jnp.array,
+                 gammas: jnp.array,
                  order: int = 0,
                  **kwargs):
         """
@@ -416,18 +420,18 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.k = np.zeros(betas.shape[0])
+        self.k = jnp.zeros(betas.shape[0])
 
         # scipy.optimize.root options
         self.solver_kwargs = kwargs
 
-        self._array_ops = {"scalar": np.array,
-                           "ndim": np.concatenate}
+        self._array_ops = {"scalar": jnp.array,
+                           "ndim": jnp.concatenate}
 
     @staticmethod
-    def validate_butcher_tableau(alphas: np.ndarray,
-                                 betas: np.ndarray,
-                                 gammas: np.ndarray) -> None:
+    def validate_butcher_tableau(alphas: jnp.array,
+                                 betas: jnp.array,
+                                 gammas: jnp.array) -> None:
         _error_msg = []
         if len(alphas) != len(gammas):
             _error_msg.append("Alpha and gamma vectors are "
@@ -442,7 +446,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
                               "builtin BackwardEulerMethod class instead.")
 
         if _error_msg:
-            raise ValueError("An error occurred while validating the input "
+            raise ValueError("An error occurred while validating the Input "
                              "Butcher tableau. More information: "
                              "{}.".format(",".join(_error_msg)))
 
@@ -475,14 +479,14 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
             self._adjust_dims(y)
 
         initial_shape = self.k.shape
-        shape_prod = np.prod(initial_shape)
+        shape_prod = jnp.prod(initial_shape)
 
         op_type = "scalar" if is_scalar(y) else "ndim"
 
-        def F(x: np.ndarray) -> np.ndarray:
+        def F(x: jnp.array) -> jnp.array:
             # kwargs are not allowed in scipy.optimize, so pass tuple instead
             model_stack = self._array_ops.get(op_type)(
-                [model(t + h * self.alphas[i], y + h * np.dot(self.betas[i], x.reshape(initial_shape)))
+                [model(t + h * self.alphas[i], y + h * jnp.dot(self.betas[i], x.reshape(initial_shape)))
                  for i in range(self.num_stages)])
 
             return model_stack - x
@@ -496,7 +500,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         # TODO: Retry here in case of convergence failure?
         root_res = root(F, x0=self.k.reshape((shape_prod,)), args=args, **self.solver_kwargs)
 
-        y_new = y + h * np.dot(self.gammas, root_res.x.reshape(initial_shape))
+        y_new = y + h * jnp.dot(self.gammas, root_res.x.reshape(initial_shape))
 
         return self.make_new_state(t=t + h, y=y_new)
 
@@ -517,8 +521,8 @@ class ExplicitMultiStepMethod(MultiStepMethod):
 
     def __init__(self,
                  startup: SingleStepMethod,
-                 a_coeffs: np.ndarray,
-                 b_coeffs: np.ndarray,
+                 a_coeffs: jnp.array,
+                 b_coeffs: jnp.array,
                  order: int = 0,
                  reverse: bool = True):
         """
@@ -577,9 +581,9 @@ class ExplicitMultiStepMethod(MultiStepMethod):
         if self._cache_idx < self.num_previous:
             return self._get_cached_state()
 
-        y_new = y + h * np.dot(self.b_coeffs, self.f_cache)
+        y_new = y + h * jnp.dot(self.b_coeffs, self.f_cache)
 
-        self.f_cache = np.roll(self.f_cache, shift=-1, axis=0)
+        self.f_cache = jnp.roll(self.f_cache, shift=-1, axis=0)
         self.f_cache[-1] = model(t + h, y_new)
 
         return self.make_new_state(t=t + h, y=y_new)
@@ -602,8 +606,8 @@ class ImplicitMultiStepMethod(MultiStepMethod):
 
     def __init__(self,
                  startup: SingleStepMethod,
-                 a_coeffs: np.ndarray,
-                 b_coeffs: np.ndarray,
+                 a_coeffs: jnp.array,
+                 b_coeffs: jnp.array,
                  order: int = 0,
                  reverse: bool = True,
                  **kwargs):
@@ -670,8 +674,8 @@ class ImplicitMultiStepMethod(MultiStepMethod):
         if self._cache_idx < self.num_previous:
             return self._get_cached_state()
 
-        def F(x: StateVariable) -> StateVariable:
-            return x + np.dot(self.a_coeffs, self.y_cache) - h * b * model(t + h, x)
+        def F(x: jnp.array) -> jnp.array:
+            return x + jnp.dot(self.a_coeffs, self.y_cache) - h * b * model(t + h, x)
 
         if kwargs:
             args = tuple(kwargs[arg] for arg in model.fn_args.keys())
@@ -683,7 +687,7 @@ class ImplicitMultiStepMethod(MultiStepMethod):
 
         y_new = root_res.x
 
-        self.y_cache = np.roll(self.y_cache, shift=-1, axis=0)
+        self.y_cache = jnp.roll(self.y_cache, shift=-1, axis=0)
         self.y_cache[-1] = y_new
 
         return self.make_new_state(t=t + h, y=y_new)

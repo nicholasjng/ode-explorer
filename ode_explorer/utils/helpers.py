@@ -1,4 +1,5 @@
 import inspect
+import jax.numpy as jnp
 from typing import Callable, List, Text
 
 from ode_explorer.defaults import standard_rhs, hamiltonian_rhs
@@ -17,7 +18,10 @@ def is_scalar(y):
         A boolean, True if the ODE state vector is scalar and False otherwise.
     """
 
-    return not hasattr(y, "__len__")
+    if isinstance(y, jnp.ndarray):
+        return y.size == 1
+    else:
+        return not hasattr(y, "__len__")
 
 
 def infer_variable_names(rhs: Callable) -> List[Text]:

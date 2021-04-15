@@ -42,6 +42,10 @@ def constant_h_loop(run: Dict[Text, Any],
     else:
         iterator = range(1, max_steps + 1)
 
+    # initialize k buffer for intermediate values
+    # TODO: Better state vector getter
+    step_func.initialize_k(state[1])
+
     for i in iterator:
         # if self._pre_step_hook:
         #     self._pre_step_hook()

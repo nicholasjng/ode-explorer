@@ -1,14 +1,11 @@
+import jax.numpy as jnp
 from typing import Dict, Any, Text, List, Callable
 
 from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.models import BaseModel
 from ode_explorer.models import messages
-from ode_explorer.types import StateVariable
 from ode_explorer.utils.helpers import infer_variable_names, infer_separability
 from ode_explorer.utils.import_utils import import_func_from_module
-
-Hamiltonian = Callable[[StateVariable, StateVariable, StateVariable, Any], float]
-
 
 class HamiltonianSystem(BaseModel):
     """
@@ -35,7 +32,7 @@ class HamiltonianSystem(BaseModel):
     """
 
     def __init__(self,
-                 hamiltonian: Hamiltonian = None,
+                 hamiltonian: Callable[[jnp.array, jnp.array, jnp.array, Any], jnp.array] = None,
                  q_derivative: Callable = None,
                  p_derivative: Callable = None,
                  module_path: Text = None,
@@ -92,7 +89,7 @@ class HamiltonianSystem(BaseModel):
         else:
             self.is_separable = infer_separability(self.q_derivative, self.p_derivative)
 
-    def make_state(self, t: StateVariable, q: StateVariable, p: StateVariable):
+    def make_state(self, t: jnp.ndarray, q: jnp.ndarray, p: jnp.ndarray):
         """
         Constructs a state object from raw input floats and numpy arrays.
 
@@ -125,7 +122,7 @@ class HamiltonianSystem(BaseModel):
         return {ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
                 ModelMetadataKeys.DIM_NAMES: self.dim_names}
 
-    def __call__(self, t: StateVariable, q: StateVariable, p: StateVariable) -> float:
+    def __call__(self, t: jnp.ndarray, q: jnp.ndarray, p: jnp.ndarray) -> jnp.ndarray:
         """
         Hamiltonian System call operator. Call a HamiltonianSystem object to return a value
         of the defining Hamiltonian at a certain point in phase space ("state").

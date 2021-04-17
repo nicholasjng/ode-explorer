@@ -1,21 +1,21 @@
-class RunKeys:
+class ResultKeys:
     RESULT_DATA = "result_data"
     METRICS = "metrics"
-    RUN_CONFIG = "run_config"
+    CONFIG = "config"
     MODEL_METADATA = "model_metadata"
 
 
-class RunConfigKeys:
+class ConfigKeys:
     START = "start"
     END = "end"
     NUM_STEPS = "num_steps"
     STEP_SIZE = "h"
-    METRIC_NAMES = "metric_names"
-    CALLBACK_NAMES = "callback_names"
+    METRICS = "metrics"
+    CALLBACKS = "callbacks"
 
 
 TIMESTAMP = "timestamp"
-RUN_ID = "run_id"
+RESULT_ID = "result_id"
 
 
 class ModelMetadataKeys:

@@ -30,8 +30,8 @@ def main():
     model = ODEModel(ode_fn=ode_func, fn_args={"lamb": lamb})
 
     step_list = [ForwardEulerMethod(),
-                 HeunMethod(), ]
-                 # RungeKutta4(),
+                 HeunMethod(),
+                 RungeKutta4(), ]
                  # BackwardEulerMethod(),
                  # AdamsBashforth2(startup=ForwardEulerMethod()),
                  # BDF2(startup=ForwardEulerMethod())]
@@ -50,11 +50,11 @@ def main():
                                        h=0.001,
                                        max_steps=1000,
                                        verbosity=1,
-                                       progress_bar=True)
-                                       # metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
+                                       progress_bar=True,
+                                       metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
 
-            # metrics = integrator.return_metrics(run_id="latest")
-
+            metrics = integrator.return_metrics(run_id="latest")
+            #
             # print(metrics.describe())
 
         # integrator.integrate_adaptively(model=model,

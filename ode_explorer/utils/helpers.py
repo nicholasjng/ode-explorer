@@ -64,7 +64,7 @@ def infer_separability(q_derivative: Callable, p_derivative: Callable) -> bool:
         p_derivative: Function returning the (vector-valued) p-derivative of the Hamiltonian.
 
     Returns:
-        A boolean indicating whether the Hamiltonian is separable based on its derivatives or not.
+        A boolean indicating whether or not the Hamiltonian is separable based on its derivatives.
     """
 
     is_separable = False

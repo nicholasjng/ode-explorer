@@ -1,6 +1,6 @@
 from typing import Dict, Text, Any, Callable, Union
 
-import numpy as np
+import jax.numpy as jnp
 
 from ode_explorer.models import BaseModel
 from ode_explorer.types import ModelState
@@ -47,7 +47,7 @@ class DistanceToSolution(Metric):
 
         Args:
             solution: Callable, of signature t -> y(t) giving the ODE solution at time t.
-            norm: Norm identifier for use in np.linalg.norm.
+            norm: Norm identifier for use in jnp.linalg.norm.
             name: Optional name identifier.
         """
         super(DistanceToSolution, self).__init__(name=name)
@@ -79,4 +79,4 @@ class DistanceToSolution(Metric):
 
         y_pred = self.solution(t)
 
-        return np.linalg.norm(y - y_pred, ord=self.norm)
+        return jnp.linalg.norm(y - y_pred, ord=self.norm)

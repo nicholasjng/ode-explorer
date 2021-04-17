@@ -1,6 +1,6 @@
 from typing import Dict, Text, Any, Tuple
 
-import numpy as np
+import jax.numpy as jnp
 
 from ode_explorer.models.model import BaseModel
 from ode_explorer.types import ModelState
@@ -82,9 +82,9 @@ class DOPRI45Controller(StepSizeController):
 
         y_4, y_5 = order4[-1], order5[-1]
 
-        err_tol = self.atol + self.rtol * np.maximum(np.abs(y_prev), np.abs(y_5))
+        err_tol = self.atol + self.rtol * jnp.maximum(jnp.abs(y_prev), jnp.abs(y_5))
 
-        err_ratio = np.linalg.norm((y_4 - y_5) / err_tol)
+        err_ratio = jnp.linalg.norm(y_4 - y_5) / err_tol
 
         accept = err_ratio < 1.
 

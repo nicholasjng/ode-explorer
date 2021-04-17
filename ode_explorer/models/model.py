@@ -75,7 +75,7 @@ class ODEModel(BaseModel):
         """
         self.fn_args.update(kwargs)
 
-    def make_state(self, t: Any, y: Any):
+    def make_state(self, t: jnp.ndarray, y: jnp.ndarray):
         """
         Constructs a state object from raw input floats and numpy arrays.
 

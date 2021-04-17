@@ -4,46 +4,46 @@ import copy
 from typing import Dict, Text
 
 from ode_explorer import constants
-from ode_explorer.constants import RunKeys, ModelMetadataKeys
+from ode_explorer.constants import ResultKeys, ModelMetadataKeys
 from ode_explorer.utils.data_utils import write_result_to_csv, convert_to_dict, initialize_dim_names
 
 
-def get_run_metadata(run):
+def get_result_metadata(result):
     """
-    Get metadata from a run.
+    Get metadata from a result.
 
     Args:
-        run: Run object saved in an Integrator instance.
+        result: Result object saved in an Integrator instance.
 
     Returns:
         A dict with run metadata information.
     """
 
-    metadata_keys = [constants.TIMESTAMP, constants.RUN_ID]
-    metadata = {k: v for k, v in run.items() if k in metadata_keys}
+    metadata_keys = [constants.TIMESTAMP, constants.RESULT_ID]
+    metadata = {k: v for k, v in result.items() if k in metadata_keys}
 
     return metadata
 
 
-def write_run_to_disk(run: Dict, out_dir: Text, **kwargs):
+def write_result_to_disk(result: Dict, out_dir: Text, **kwargs):
     """
     Save a run to disk, including result data, metrics and additional info.
 
     Args:
-        run: Run object saved in an Integrator instance.
+        result: Result object saved in an Integrator instance.
         out_dir: Designated output directory.
         **kwargs: Additional keyword arguments passed to pandas.DataFrame.to_csv.
     """
 
-    run_copy = copy.deepcopy(run)
+    result_copy = copy.deepcopy(result)
 
-    result_data = run_copy.pop(RunKeys.RESULT_DATA)
+    result_data = result_copy.pop(ResultKeys.RESULT_DATA)
 
-    metric_data = run_copy.pop(RunKeys.METRICS)
+    metric_data = result_copy.pop(ResultKeys.METRICS)
 
-    run_filename = "run_info.json"
+    result_filename = "result_info.json"
 
-    model_metadata = run_copy[RunKeys.MODEL_METADATA]
+    model_metadata = result_copy[ResultKeys.MODEL_METADATA]
 
     variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
 
@@ -53,21 +53,22 @@ def write_run_to_disk(run: Dict, out_dir: Text, **kwargs):
         dim_names = initialize_dim_names(variable_names, result_data[0])
 
     for i, res in enumerate(result_data):
-        result_data[i] = convert_to_dict(res, model_metadata=model_metadata,
+        result_data[i] = convert_to_dict(res,
+                                         model_metadata=model_metadata,
                                          dim_names=dim_names)
 
     # write result vectors to csv file
     write_result_to_csv(result=result_data,
                         out_dir=out_dir,
-                        outfile_name=RunKeys.RESULT_DATA,
+                        outfile_name=ResultKeys.RESULT_DATA,
                         **kwargs)
 
     # write metrics to csv file
     write_result_to_csv(result=metric_data,
                         out_dir=out_dir,
-                        outfile_name=RunKeys.METRICS,
+                        outfile_name=ResultKeys.METRICS,
                         **kwargs)
 
-    outfile = os.path.join(out_dir, run_filename)
+    outfile = os.path.join(out_dir, result_filename)
     with open(outfile, "w") as f:
-        json.dump(run_copy, f)
+        json.dump(result_copy, f)

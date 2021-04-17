@@ -1,6 +1,7 @@
 import logging
 
 import jax.numpy as jnp
+from jax import lax
 from scipy.optimize import root
 
 from ode_explorer.models import BaseModel, ODEModel
@@ -22,6 +23,7 @@ class SingleStepMethod:
     Base class for all single step functions for ODE solving. Override this class and its methods
     to make your own custom single-step functions.
     """
+    _step = None
 
     def __init__(self, order: int = 0):
         """
@@ -33,26 +35,6 @@ class SingleStepMethod:
         self.order = order
         self.model_dim = 0
         self.num_stages = 0
-        self.k = None
-
-    def initialize_k(self, state_vector: jnp.array):
-        self.k = jnp.zeros((self.num_stages, state_vector.size))
-
-    def _adjust_dims(self, y: jnp.array):
-        scalar_ode = is_scalar(y)
-
-        if scalar_ode:
-            model_dim = 1
-            shape = (self.num_stages,)
-        else:
-            model_dim = len(y)
-            shape = (self.num_stages, model_dim)
-
-        self.model_dim = model_dim
-        self.k = jnp.zeros(shape=shape)
-
-    def _get_shape(self, y: jnp.array):
-        return (self.num_stages,) if is_scalar(y) else (self.num_stages, len(y))
 
     @staticmethod
     def get_data_from_state(state: ModelState):
@@ -105,9 +87,13 @@ class SingleStepMethod:
             **kwargs: Additional keyword arguments, unused for now.
 
         Returns:
-            A new state containing the ODE model data at time t+h.
+            A new state containing the ODE model data at time t + h.
         """
-        raise NotImplementedError
+        t, y = self.get_data_from_state(state=state)
+
+        y_new = self._step(model, t, y, h)
+
+        return self.make_new_state(t + h, y_new)
 
 
 class MultiStepMethod:
@@ -316,7 +302,6 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
         self.betas = betas
         self.gammas = gammas
         self.num_stages = len(self.alphas)
-        self.k = jnp.zeros(betas.shape[0])
 
     @staticmethod
     def _validate_butcher_tableau(alphas: jnp.array,
@@ -324,7 +309,7 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
                                   gammas: jnp.array) -> None:
         _error_msg = []
         if len(alphas) != len(gammas):
-            _error_msg.append("Alpha and gamma vectors are not the same length")
+            _error_msg.append("Alpha and gamma vectors must have the same length")
 
         if betas.shape[0] != betas.shape[1]:
             _error_msg.append("Betas must be a quadratic matrix with the same "
@@ -366,18 +351,20 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         t, y = self.get_data_from_state(state=state)
 
-        if self._get_shape(y) != self.k.shape:
-            self._adjust_dims(y)
+        k = jnp.zeros((self.num_stages, y.size), y.dtype).at[0].set(model(t, y))
 
-        self.k[0] = model(t, y)
+        def body_fun(i, k_buf):
+            # loop starts at 1 since first alpha, beta are zero
+            ti = t + self.alphas[i - 1] * h
+            yi = y + h * jnp.dot(self.betas[i - 1], k_buf)
+            fi = model(ti, yi)
+            return k_buf.at[i].set(fi)
 
-        for i in range(1, self.num_stages):
-            # first row of betas is a zero row because it is an explicit RK
-            self.k[i] = model(t + h * self.alphas[i], y + h * jnp.dot(self.betas[i], self.k))
+        k = lax.fori_loop(lower=1, upper=self.num_stages, body_fun=body_fun, init_val=k)
 
-        y_new = y + h * jnp.dot(self.gammas, self.k)
+        y_new = y + h * jnp.dot(self.gammas, k)
 
-        return self.make_new_state(t=t + h, y=y_new)
+        return self.make_new_state(t=t+h, y=y_new)
 
 
 class ImplicitRungeKuttaMethod(SingleStepMethod):
@@ -474,9 +461,6 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         """
 
         t, y = self.get_data_from_state(state=state)
-
-        if self._get_shape(y) != self.k.shape:
-            self._adjust_dims(y)
 
         initial_shape = self.k.shape
         shape_prod = jnp.prod(initial_shape)

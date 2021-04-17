@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, Text, Any
 
-import numpy as np
+import jax.numpy as jnp
 
 from ode_explorer.models import BaseModel
 from ode_explorer.types import ModelState
@@ -98,8 +98,8 @@ class NaNChecker(Callback):
         # i.e. not having nans
         y_new = updated_state[-1]
 
-        na_mask = np.isnan(y_new)
-        if np.any(na_mask):
+        na_mask = jnp.isnan(y_new)
+        if jnp.any(na_mask):
             if self.nan_handling_mode == "raise":
                 logger.error("Error: Encountered at least one NaN "
                              "value in the state after the ODE step.")

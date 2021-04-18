@@ -1,4 +1,4 @@
-import numpy as np
+import jax.numpy as jnp
 import logging
 
 from ode_explorer.stepfunctions import *
@@ -6,16 +6,16 @@ from ode_explorer.models import ODEModel
 from ode_explorer.integrators import Integrator
 from ode_explorer.metrics import DistanceToSolution
 
-y_0 = 1.0
+y_0 = jnp.array(1.0)
 lamb = 0.5
 
 
-def ode_func(t: float, y: Union[float, np.ndarray], lamb: float = 0.5):
+def ode_func(t: float, y: jnp.ndarray, lamb: float = 0.5):
     return - lamb * y
 
 
 def sol(t):
-    return y_0 * np.exp(-lamb * t)
+    return y_0 * jnp.exp(-lamb * t)
 
 
 def main():

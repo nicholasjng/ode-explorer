@@ -3,7 +3,7 @@ from typing import Dict, Text, Any, Tuple
 import jax.numpy as jnp
 
 from ode_explorer.models.model import BaseModel
-from ode_explorer.types import ModelState
+from ode_explorer.types import State
 
 
 class StepSizeController:
@@ -15,10 +15,10 @@ class StepSizeController:
     def __call__(self,
                  i: int,
                  h: float,
-                 state: ModelState,
-                 updated_state: ModelState,
+                 state: State,
+                 updated_state: State,
                  model: BaseModel,
-                 local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
+                 local_vars: Dict[Text, Any]) -> Tuple[bool, jnp.array]:
         raise NotImplementedError
 
 
@@ -55,10 +55,10 @@ class DOPRI45Controller(StepSizeController):
     def __call__(self,
                  i: int,
                  h: float,
-                 state: ModelState,
-                 updated_state: ModelState,
+                 state: State,
+                 updated_state: State,
                  model: BaseModel,
-                 local_vars: Dict[Text, Any]) -> Tuple[bool, float]:
+                 local_vars: Dict[Text, Any]) -> Tuple[bool, jnp.array]:
         """
         DOPRI45 step size control call operator.
 

@@ -1,9 +1,7 @@
 import jax.numpy as jnp
 from typing import Dict, Any, Text, List, Callable
 
-from ode_explorer.constants import ModelMetadataKeys
-from ode_explorer.models import BaseModel
-from ode_explorer.models import messages
+from ode_explorer.models import BaseModel, messages
 from ode_explorer.utils.helpers import infer_variable_names, infer_separability
 from ode_explorer.utils.import_utils import import_func_from_module
 
@@ -112,16 +110,6 @@ class HamiltonianSystem(BaseModel):
             **kwargs: Updated keyword arguments to replace the old ones.
         """
         self.h_args.update(kwargs)
-
-    def get_metadata(self):
-        """
-        Return model metadata information. Used for constructing result pandas DataFrame objects.
-
-        Returns:
-            A dict with model metadata information.
-        """
-        return {ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
-                ModelMetadataKeys.DIM_NAMES: self.dim_names}
 
     def __call__(self, t: jnp.ndarray, q: jnp.ndarray, p: jnp.ndarray) -> jnp.ndarray:
         """

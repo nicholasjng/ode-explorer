@@ -1,18 +1,18 @@
-import numpy as np
+import jax.numpy as jnp
 
 from ode_explorer.stepfunctions import *
 from ode_explorer.models import HamiltonianSystem
 from ode_explorer.integrators import Integrator
 
 
-def free_particle_hamiltonian(t: float, q: np.ndarray, p: np.ndarray, m=1.0) -> float:
-    kinetic_energy = np.dot(p, p) / (2*m)
+def free_particle_hamiltonian(t: float, q: jnp.ndarray, p: jnp.ndarray, m=1.0) -> float:
+    kinetic_energy = jnp.dot(p, p) / (2*m)
     potential = 0.0
     return kinetic_energy + potential
 
 
 def q_deriv(t, q, m=1.0):
-    return np.zeros_like(q)
+    return jnp.zeros_like(q, q.dtype)
 
 
 def p_deriv(t, p, m=1.0):
@@ -21,8 +21,8 @@ def p_deriv(t, p, m=1.0):
 
 def main():
     t_0 = 0.0
-    q_0 = np.zeros(2)
-    p_0 = np.ones(2) / np.sqrt(2)
+    q_0 = jnp.zeros(2)
+    p_0 = jnp.ones(2) / jnp.sqrt(2)
 
     mass = 2.0
 

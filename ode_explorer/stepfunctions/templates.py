@@ -2,11 +2,11 @@ import logging
 
 import jax.numpy as jnp
 from jax import lax
-from scipy.optimize import root
 
 from ode_explorer.models import BaseModel, ODEModel
-from ode_explorer.types import ModelState
-from ode_explorer.utils.helpers import is_scalar
+from ode_explorer.types import State
+
+# from scipy.optimize import root
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,9 @@ class SingleStepMethod:
         self.num_stages = 0
 
     @staticmethod
-    def get_data_from_state(state: ModelState):
+    def get_data_from_state(state: State):
         """
-        Custom member function for getting the raw numpy-compatible data from a ModelState object.
+        Custom member function for getting the raw numpy-compatible data from a State object.
         Override this if you intend to use a custom state type such as a NamedTuple.
 
         Args:
@@ -51,7 +51,7 @@ class SingleStepMethod:
         return state
 
     @staticmethod
-    def make_new_state(t: jnp.array, y: jnp.array) -> ModelState:
+    def make_new_state(t: jnp.array, y: jnp.array) -> State:
         """
         Custom function for constructing a new state from numpy data.
         Override this if you intend to use a custom state type such as a NamedTuple.
@@ -73,9 +73,9 @@ class SingleStepMethod:
 
     def forward(self,
                 model: BaseModel,
-                state: ModelState,
+                state: State,
                 h: float,
-                **kwargs) -> ModelState:
+                **kwargs) -> State:
         """
         Main method to advance an ODE in time by computing a new state using a single-step method.
         Override this to define your own single-step functions.
@@ -146,9 +146,9 @@ class MultiStepMethod:
         self.y_cache = jnp.zeros(self.num_previous)
 
     @staticmethod
-    def get_data_from_state(state: ModelState):
+    def get_data_from_state(state: State):
         """
-        Custom member function for getting the raw numpy-compatible data from a ModelState object.
+        Custom member function for getting the raw numpy-compatible data from a State object.
         Override this if you intend to use a custom state type such as a NamedTuple.
 
         Args:
@@ -160,7 +160,7 @@ class MultiStepMethod:
         return state
 
     @staticmethod
-    def make_new_state(t: jnp.array, y: jnp.array) -> ModelState:
+    def make_new_state(t: jnp.array, y: jnp.array) -> State:
         """
         Custom function for constructing a new state from numpy data.
         Override this if you intend to use a custom state type such as a NamedTuple.
@@ -174,22 +174,6 @@ class MultiStepMethod:
         """
         return t, y
 
-    def _adjust_dims(self, y: jnp.array):
-        if is_scalar(y):
-            model_dim = 1
-            shape = (self.num_previous,)
-
-        else:
-            model_dim = len(y)
-            shape = (self.num_previous, model_dim)
-
-        self.model_dim = model_dim
-        self.f_cache = jnp.zeros(shape=shape)
-        self.y_cache = jnp.zeros(shape=shape)
-
-    def _get_shape(self, y: jnp.array):
-        return (self.num_previous,) if is_scalar(y) else (self.num_previous, len(y))
-
     def reset(self):
         """
         Resets the step function so that next time the multi-step method is called,
@@ -202,7 +186,7 @@ class MultiStepMethod:
 
     def _perform_startup_calculation(self,
                                      model: ODEModel,
-                                     state: ModelState,
+                                     state: State,
                                      h: float,
                                      **kwargs):
         """
@@ -219,9 +203,6 @@ class MultiStepMethod:
         """
 
         t, y = self.get_data_from_state(state=state)
-
-        if self._get_shape(y) != self.y_cache.shape:
-            self._adjust_dims(y)
 
         # fill function evaluation cache
         self.t_cache[0], self.y_cache[0], self.f_cache[0] = t, y, model(t, y)
@@ -246,9 +227,9 @@ class MultiStepMethod:
 
     def forward(self,
                 model: ODEModel,
-                state: ModelState,
+                state: State,
                 h: float,
-                **kwargs) -> ModelState:
+                **kwargs) -> State:
         """
         Main method to advance an ODE in time by computing a new state with a multi-step method.
         Override this to define your own multi-step functions.
@@ -276,6 +257,7 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
     For more information on Runge-Kutta methods and the Butcher tableau, see
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods.
     """
+
     def __init__(self,
                  alphas: jnp.array,
                  betas: jnp.array,
@@ -325,9 +307,9 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
     def forward(self,
                 model: ODEModel,
-                state: ModelState,
+                state: State,
                 h: float,
-                **kwargs) -> ModelState:
+                **kwargs) -> State:
         """
         Main method to advance an ODE in time by computing a new state with a
         multi-stage explicit Runge-Kutta method.
@@ -361,7 +343,7 @@ class ExplicitRungeKuttaMethod(SingleStepMethod):
 
         y_new = y + h * jnp.dot(self.gammas, k)
 
-        return self.make_new_state(t=t+h, y=y_new)
+        return self.make_new_state(t=t + h, y=y_new)
 
 
 class ImplicitRungeKuttaMethod(SingleStepMethod):
@@ -379,6 +361,7 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
     For more information on implicit Runge-Kutta methods and the Butcher tableau, see
     https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods#Implicit_Runge%E2%80%93Kutta_methods.
     """
+
     def __init__(self,
                  alphas: jnp.array,
                  betas: jnp.array,
@@ -436,9 +419,9 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
 
     def forward(self,
                 model: ODEModel,
-                state: ModelState,
+                state: State,
                 h: float,
-                **kwargs) -> ModelState:
+                **kwargs) -> State:
         """
         Main method to advance an ODE in time by computing a new state with a
         multi-stage implicit Runge-Kutta method.
@@ -456,34 +439,34 @@ class ImplicitRungeKuttaMethod(SingleStepMethod):
         Returns:
             A new state containing the ODE model data at time t+h.
         """
+        raise NotImplementedError
 
-        t, y = self.get_data_from_state(state=state)
-
-        initial_shape = self.k.shape
-        shape_prod = jnp.prod(initial_shape)
-
-        op_type = "scalar" if is_scalar(y) else "ndim"
-
-        def F(x: jnp.array) -> jnp.array:
-            # kwargs are not allowed in scipy.optimize, so pass tuple instead
-            model_stack = self._array_ops.get(op_type)(
-                [model(t + h * self.alphas[i], y + h * jnp.dot(self.betas[i], x.reshape(initial_shape)))
-                 for i in range(self.num_stages)])
-
-            return model_stack - x
-
-        # sort the kwargs before putting them into the tuple passed to root
-        if kwargs:
-            args = tuple(kwargs[arg] for arg in model.fn_args.keys())
-        else:
-            args = ()
-
-        # TODO: Retry here in case of convergence failure?
-        root_res = root(F, x0=self.k.reshape((shape_prod,)), args=args, **self.solver_kwargs)
-
-        y_new = y + h * jnp.dot(self.gammas, root_res.x.reshape(initial_shape))
-
-        return self.make_new_state(t=t + h, y=y_new)
+        # t, y = self.get_data_from_state(state=state)
+        #
+        # initial_shape = self.k.shape
+        # shape_prod = jnp.prod(initial_shape)
+        #
+        # op_type = "scalar" if is_scalar(y) else "ndim"
+        #
+        # def F(x: jnp.array) -> jnp.array:
+        #     # kwargs are not allowed in scipy.optimize, so pass tuple instead
+        #     model_stack = self._array_ops.get(op_type)(
+        #         [model(t + h * self.alphas[i], y + h * jnp.dot(self.betas[i], x.reshape(initial_shape)))
+        #          for i in range(self.num_stages)])
+        #
+        #     return model_stack - x
+        #
+        # # sort the kwargs before putting them into the tuple passed to root
+        # if kwargs:
+        #     args = tuple(kwargs[arg] for arg in model.fn_args.keys())
+        # else:
+        #     args = ()
+        #
+        # root_res = root(F, x0=self.k.reshape((shape_prod,)), args=args, **self.solver_kwargs)
+        #
+        # y_new = y + h * jnp.dot(self.gammas, root_res.x.reshape(initial_shape))
+        #
+        # return self.make_new_state(t=t + h, y=y_new)
 
 
 class ExplicitMultiStepMethod(MultiStepMethod):
@@ -526,9 +509,9 @@ class ExplicitMultiStepMethod(MultiStepMethod):
 
     def forward(self,
                 model: ODEModel,
-                state: ModelState,
+                state: State,
                 h: float,
-                **kwargs) -> ModelState:
+                **kwargs) -> State:
         """
         Main method to advance an ODE in time by computing a new state with an explicit
         multi-step method.
@@ -616,9 +599,9 @@ class ImplicitMultiStepMethod(MultiStepMethod):
 
     def forward(self,
                 model: ODEModel,
-                state: ModelState,
+                state: State,
                 h: float,
-                **kwargs) -> ModelState:
+                **kwargs) -> State:
         """
         Main method to advance an ODE in time by computing a new state with an implicit
         multi-step method.
@@ -636,39 +619,38 @@ class ImplicitMultiStepMethod(MultiStepMethod):
         Returns:
             A new state containing the ODE model data at time t+h.
         """
-
-        if not self.ready:
-            # startup calculation to the multi-step method,
-            # fills the state and f-caches
-            self._perform_startup_calculation(model=model,
-                                              state=state,
-                                              h=h,
-                                              **kwargs)
-
-            # first cached value
-            return self.make_new_state(self.t_cache[1], self.y_cache[1])
-
-        b = self.b_coeffs[-1]
-
-        t, y = self.get_data_from_state(state=state)
-
-        if self._cache_idx < self.num_previous:
-            return self._get_cached_state()
-
-        def F(x: jnp.array) -> jnp.array:
-            return x + jnp.dot(self.a_coeffs, self.y_cache) - h * b * model(t + h, x)
-
-        if kwargs:
-            args = tuple(kwargs[arg] for arg in model.fn_args.keys())
-        else:
-            args = ()
-
-        # TODO: Retry here in case of convergence failure?
-        root_res = root(F, x0=y, args=args, **self.solver_kwargs)
-
-        y_new = root_res.x
-
-        self.y_cache = jnp.roll(self.y_cache, shift=-1, axis=0)
-        self.y_cache[-1] = y_new
-
-        return self.make_new_state(t=t + h, y=y_new)
+        raise NotImplementedError
+        # if not self.ready:
+        #     # startup calculation to the multi-step method,
+        #     # fills the state and f-caches
+        #     self._perform_startup_calculation(model=model,
+        #                                       state=state,
+        #                                       h=h,
+        #                                       **kwargs)
+        #
+        #     # first cached value
+        #     return self.make_new_state(self.t_cache[1], self.y_cache[1])
+        #
+        # b = self.b_coeffs[-1]
+        #
+        # t, y = self.get_data_from_state(state=state)
+        #
+        # if self._cache_idx < self.num_previous:
+        #     return self._get_cached_state()
+        #
+        # def F(x: jnp.array) -> jnp.array:
+        #     return x + jnp.dot(self.a_coeffs, self.y_cache) - h * b * model(t + h, x)
+        #
+        # if kwargs:
+        #     args = tuple(kwargs[arg] for arg in model.fn_args.keys())
+        # else:
+        #     args = ()
+        #
+        # root_res = root(F, x0=y, args=args, **self.solver_kwargs)
+        #
+        # y_new = root_res.x
+        #
+        # self.y_cache = jnp.roll(self.y_cache, shift=-1, axis=0)
+        # self.y_cache[-1] = y_new
+        #
+        # return self.make_new_state(t=t + h, y=y_new)

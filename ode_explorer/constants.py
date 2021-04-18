@@ -13,8 +13,3 @@ class ConfigKeys:
     TIMESTAMP = "timestamp"
     ID = "result_id"
     LOOP_TYPE = "loop_type"
-
-
-class ModelMetadataKeys:
-    DIM_NAMES = "dim_names"
-    VARIABLE_NAMES = "variable_names"

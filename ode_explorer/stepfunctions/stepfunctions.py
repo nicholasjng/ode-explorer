@@ -79,7 +79,7 @@ class EulerA(SingleStepMethod):
     EulerA method for Hamiltonian Systems integration.
     """
     order = 1
-    _step = euler_a_step
+    _step = staticmethod(euler_a_step)
 
     @staticmethod
     def make_new_state(t: jnp.ndarray, *state_vectors):
@@ -92,7 +92,7 @@ class EulerB(SingleStepMethod):
     EulerB method for Hamiltonian Systems integration.
     """
     order = 1
-    _step = euler_b_step
+    _step = staticmethod(euler_b_step)
 
     @staticmethod
     def make_new_state(t: jnp.ndarray, *state_vectors):

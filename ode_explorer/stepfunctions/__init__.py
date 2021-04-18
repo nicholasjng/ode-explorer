@@ -3,7 +3,7 @@ from ode_explorer.stepfunctions.stepfunctions import (
     HeunMethod,
     RungeKutta4,
     DOPRI45,
-    BackwardEulerMethod,
+    # BackwardEulerMethod,
     AdamsBashforth2,
     BDF2,
     EulerA,

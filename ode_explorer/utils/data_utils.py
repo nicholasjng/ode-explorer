@@ -1,14 +1,13 @@
 import os
+import jax.numpy as jnp
 from typing import List, Dict, Text, Any
 
-from ode_explorer.constants import ModelMetadataKeys
-from ode_explorer.types import ModelState
-from ode_explorer.utils.helpers import is_scalar
+from ode_explorer.types import State
 
 __all__ = ["initialize_dim_names", "convert_to_dict", "write_result_to_csv"]
 
 
-def initialize_dim_names(variable_names: List[Text], state: ModelState):
+def initialize_dim_names(variable_names: List[Text], state: State):
     """
     Initialize the dimension names for saving data to disk using pandas.
     The dimension names will be used as column headers in the resulting pd.DataFrame.
@@ -25,7 +24,7 @@ def initialize_dim_names(variable_names: List[Text], state: ModelState):
     var_dims = []
 
     for k, v in zip(variable_names, state):
-        dim = 1 if is_scalar(v) else len(v)
+        dim = 1 if jnp.isscalar(v) else len(v)
 
         var_dims.append((k, dim))
 
@@ -39,7 +38,7 @@ def initialize_dim_names(variable_names: List[Text], state: ModelState):
     return dim_names
 
 
-def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any], dim_names: List[Text]):
+def convert_to_dict(state: State, model_metadata: Dict[Text, Any], dim_names: List[Text]):
     """
     Convert a state in a run result object to a Dict for use in a pd.DataFrame constructor.
 
@@ -54,13 +53,13 @@ def convert_to_dict(state: ModelState, model_metadata: Dict[Text, Any], dim_name
 
     output_dict = dict()
 
-    variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
+    variable_names = model_metadata["variable_names"]
 
     idx = 0
     for i, name in enumerate(variable_names):
         v = state[i]
 
-        if is_scalar(v):
+        if jnp.isscalar(v):
             k = dim_names[idx]
             output_dict.update({k: v})
             idx += 1
@@ -85,15 +84,15 @@ def write_result_to_csv(result: List[Any],
         outfile_name: Designated output file name.
         **kwargs: Additional keyword arguments passed to pandas.DataFrame.to_csv.
     """
-
-    if not os.path.exists(out_dir):
-        os.mkdir(out_dir)
-
-    file_ext = ".csv"
-
-    # convert result_list to data frame, fast construction from list
-    result_df = pd.DataFrame(data=result)
-
-    out_file = os.path.join(out_dir, outfile_name)
-
-    result_df.to_csv(out_file + file_ext, **kwargs)
+    raise NotImplementedError
+    # if not os.path.exists(out_dir):
+    #     os.mkdir(out_dir)
+    #
+    # file_ext = ".csv"
+    #
+    # # convert result_list to data frame, fast construction from list
+    # result_df = pd.DataFrame(data=result)
+    #
+    # out_file = os.path.join(out_dir, outfile_name)
+    #
+    # result_df.to_csv(out_file + file_ext, **kwargs)

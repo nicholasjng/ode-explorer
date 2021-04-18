@@ -1,11 +1,9 @@
 import jax.numpy as jnp
 
-from typing import Dict, Any, Text, List, Callable
+from typing import Dict, Any, Text, Callable
 
-from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.models import BaseModel
 from ode_explorer.models import messages
-from ode_explorer.utils.helpers import infer_variable_names
 from ode_explorer.utils.import_utils import import_func_from_module
 
 ODEFunction = Callable[[jnp.array, jnp.array, Any], jnp.array]
@@ -25,17 +23,13 @@ class ODEModel(BaseModel):
     Attributes:
         ode_fn: Right-hand side of the ODE.
         fn_args: Dict with additional keyword arguments for the ode_fn.
-        variable_names: List of ODE variable names, taken from the signature of the ode_fn.
-        dim_names: Optional list of dimension names for result data saving. These will become column
-         headers in result pandas.DataFrame objects.
     """
 
     def __init__(self,
                  ode_fn: ODEFunction = None,
                  module_path: Text = None,
                  ode_fn_name: Text = None,
-                 fn_args: Dict[Text, Any] = None,
-                 dim_names: List[Text] = None) -> None:
+                 fn_args: Dict[Text, Any] = None) -> None:
         """
         ODEModel constructor.
 
@@ -46,9 +40,8 @@ class ODEModel(BaseModel):
             ode_fn_name: Name of the function to be used as ode_fn. Needs to be present in the module file
              specified in the module_path argument.
             fn_args: Additional keyword arguments for ode_fn.
-            dim_names: Optional list of dimension names for result data saving. These will become column
-             headers in result pandas.DataFrame objects.
         """
+
         if not any([bool(module_path), bool(ode_fn_name), bool(ode_fn)]):
             raise ValueError(messages.MISSING_INFO)
 
@@ -62,9 +55,6 @@ class ODEModel(BaseModel):
 
         # additional arguments for the function
         self.fn_args = fn_args or {}
-
-        self.variable_names = infer_variable_names(rhs=ode_fn)
-        self.dim_names = dim_names or []
 
     def update_args(self, **kwargs):
         """
@@ -87,17 +77,6 @@ class ODEModel(BaseModel):
             A state object representing the current model state.
         """
         return jnp.array(t), jnp.array(y)
-
-    def get_metadata(self):
-        """
-        Return model metadata information. Used for constructing result pandas DataFrame objects.
-
-        Returns:
-            A dict with model metadata information.
-        """
-
-        return {ModelMetadataKeys.VARIABLE_NAMES: self.variable_names,
-                ModelMetadataKeys.DIM_NAMES: self.dim_names}
 
     def __call__(self, t: jnp.array, y: jnp.array) -> jnp.array:
         """

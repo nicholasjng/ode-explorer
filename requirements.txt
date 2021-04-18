@@ -1,6 +1,4 @@
 jax
 jaxlib
-pandas
 tqdm
-scipy
 tabulate

@@ -1,4 +1,3 @@
-import copy
 import datetime
 import logging
 import os
@@ -6,20 +5,17 @@ import uuid
 from typing import Dict, Callable, Text, List, Union, Any
 
 import absl.logging
-import pandas as pd
 from tabulate import tabulate
 
-from ode_explorer import constants
 from ode_explorer.callbacks import Callback
-from ode_explorer.constants import ResultKeys, ConfigKeys, ModelMetadataKeys
+from ode_explorer.constants import ResultKeys, ConfigKeys
 from ode_explorer.integrators.loop_factory import loop_factory
 from ode_explorer.metrics import Metric
 from ode_explorer.models import BaseModel
 from ode_explorer.stepfunctions import StepFunction
 from ode_explorer.stepsize_control import StepSizeController
-from ode_explorer.types import ModelState
-from ode_explorer.utils.data_utils import convert_to_dict, initialize_dim_names
-from ode_explorer.utils.result_utils import write_result_to_disk, get_result_metadata
+from ode_explorer.types import State
+from ode_explorer.utils.result_utils import get_result_metadata
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -40,8 +36,7 @@ class Integrator:
     def __init__(self,
                  base_log_dir: Text = None,
                  logfile_name: Text = None,
-                 base_output_dir: Text = None,
-                 csv_io_args: Dict[Text, Any] = None):
+                 base_output_dir: Text = None):
         """
         Base Integrator constructor.
 
@@ -49,8 +44,6 @@ class Integrator:
             base_log_dir: Base directory for saving ODE integration logs.
             logfile_name: Base log file object to save all logs into.
             base_output_dir: Base output directory for saving result and model data.
-            csv_io_args: Additional keyword arguments passed to pandas.DataFrame.to_csv
-             when writing data to a CSV file.
         """
         # empty list holding the different executed ODE integration results
         self.results = []
@@ -62,10 +55,6 @@ class Integrator:
         self._set_up_logger(log_dir=self.base_log_dir)
 
         self.base_output_dir = base_output_dir or os.path.join(os.getcwd(), "results")
-
-        self.datetime_format = "%c"
-
-        self.csv_io_args = csv_io_args or {}
 
         if not os.path.exists(self.base_output_dir):
             os.mkdir(self.base_output_dir)
@@ -93,64 +82,41 @@ class Integrator:
 
     def _make_config(self,
                      model: BaseModel,
-                     # step_func: StepFunction,
-                     # sc: Union[StepSizeController, Callable],
-                     initial_state: ModelState,
+                     step_func: StepFunction,
+                     sc: Union[StepSizeController, Callable],
+                     initial_state: State,
                      end: float,
                      h: float,
                      max_steps: int,
                      callbacks: List[Callback],
                      metrics: List[Metric]) -> Dict[Text, Any]:
 
-        # callbacks and metrics
-        callbacks = callbacks or []
-        metrics = metrics or []
+        start, _ = initial_state
 
-        result = {constants.TIMESTAMP: datetime.datetime.now().strftime(self.datetime_format),
-                  constants.RESULT_ID: str(uuid.uuid4())}
+        config = {ConfigKeys.TIMESTAMP: datetime.datetime.now().strftime("%c"),
+                  ConfigKeys.ID: str(uuid.uuid4()),
+                  ConfigKeys.LOOP_TYPE: "static" if not bool(sc) else "dynamic",
+                  ConfigKeys.START: start,
+                  ConfigKeys.END: end,
+                  ConfigKeys.STEP_SIZE: h,
+                  ConfigKeys.NUM_STEPS: max_steps,
+                  ConfigKeys.METRICS: [m.__name__ for m in metrics],
+                  ConfigKeys.CALLBACKS: [c.__name__ for c in callbacks]
+                  }
 
-        start = initial_state[0]
-
-        result_config = {ConfigKeys.START: start,
-                         ConfigKeys.END: end,
-                         ConfigKeys.STEP_SIZE: h,
-                         ConfigKeys.NUM_STEPS: max_steps,
-                         ConfigKeys.METRICS: [m.__name__ for m in metrics],
-                         ConfigKeys.CALLBACKS: [c.__name__ for c in callbacks]
-                         }
-
-        # initial_metrics = {}
-        #
-        # for metric in metrics:
-        #     val = metric(0, initial_state, initial_state, model, locals())
-        #     initial_metrics[metric.__name__] = val
-
-        # if bool(sc):
-        #     # means dynamical integration, hence we log step size, accepts and rejects
-        #     initial_metrics.update({defaults.iteration: 0,
-        #                             defaults.step_size: h,
-        #                             defaults.accepted: 1,
-        #                             defaults.rejected: 0})
-
-        result.update({ResultKeys.MODEL_METADATA: model.get_metadata(),
-                       ResultKeys.CONFIG: result_config})
-        return result
+        return config
 
     def _integrate(self,
                    loop_type: Text,
                    model: BaseModel,
                    step_func: StepFunction,
-                   initial_state: ModelState,
+                   initial_state: State,
                    end: float,
-                   reset: bool = False,
                    verbosity: int = 0,
                    output_dir: Text = None,
                    logfile: Text = None,
                    progress_bar: bool = False,
                    **loop_kwargs):
-
-        if reset:
-            self._reset()
 
         # create file handler
         if logfile:
@@ -162,24 +128,26 @@ class Integrator:
             handler.setLevel(verbosity)
 
         # construct result object
-        result = self._make_config(model=model,
-                                   # step_func=step_func,
+        config = self._make_config(model=model,
+                                   step_func=step_func,
                                    initial_state=initial_state,
                                    end=end,
                                    **loop_kwargs)
-
-        # deepcopy here, otherwise the initial state gets overwritten
-        state = copy.deepcopy(initial_state)
 
         logger.info("Starting integration.")
 
         result = loop_factory.get(loop_type)(step_func=step_func,
                                              model=model,
-                                             state=state,
+                                             initial_state=initial_state,
                                              progress_bar=progress_bar,
                                              **loop_kwargs)
 
         logger.info("Finished integration.")
+
+        result_dict = {ResultKeys.RESULT_DATA: result,
+                       ResultKeys.CONFIG: config}
+
+        self.results.append(result_dict)
 
         if output_dir:
             self.save_result(result=result, output_dir=output_dir)
@@ -187,14 +155,12 @@ class Integrator:
             logger.info("Results saved to directory {}.".format(
                 os.path.join(self.base_output_dir, output_dir)))
 
-        self.results.append(result)
-
         return self
 
     def integrate_const(self,
                         model: BaseModel,
                         step_func: StepFunction,
-                        initial_state: ModelState,
+                        initial_state: State,
                         end: float = None,
                         h: float = None,
                         max_steps: int = None,
@@ -223,6 +189,9 @@ class Integrator:
             callbacks: List of callbacks to execute after each step.
             metrics: List of metrics to calculate after each step.
         """
+        # empty lists in case nothing was supplied
+        callbacks = callbacks or []
+        metrics = metrics or []
 
         return self._integrate(loop_type="constant",
                                model=model,
@@ -243,7 +212,7 @@ class Integrator:
     def integrate_adaptively(self,
                              model: BaseModel,
                              step_func: StepFunction,
-                             initial_state: ModelState,
+                             initial_state: State,
                              sc: Union[StepSizeController, Callable],
                              end: float,
                              initial_h: float = None,
@@ -274,6 +243,9 @@ class Integrator:
             callbacks: List of callbacks to execute after each step.
             metrics: List of metrics to calculate after each step.
         """
+        # empty lists in case nothing was supplied
+        callbacks = callbacks or []
+        metrics = metrics or []
 
         return self._integrate(loop_type="adaptive",
                                model=model,
@@ -321,59 +293,37 @@ class Integrator:
         if len(self.results) == 0:
             raise ValueError("No results available. Please integrate a model first!")
         if result_id == "latest":
-            return self.results[-1]
+            return self.results[-1][ResultKeys.RESULT_DATA]
         try:
-            result = next(r for r in self.results if result_id in str(r[constants.RESULT_ID]))
+            result = next(r for r in self.results if result_id in str(r[ResultKeys.CONFIG][ConfigKeys.ID]))
         except StopIteration:
             raise ValueError(f"Result with ID {result_id} not found.")
 
-        return result
+        return result[ResultKeys.RESULT_DATA]
 
-    def return_result_data(self, result_id: Text) -> pd.DataFrame:
+    def return_result_data(self, result_id: Text) -> List:
         """
-        Construct a pd.DataFrame out of the result data of a previous integration result.
+        Return data of a previous integration result.
 
         Args:
             result_id: ID of the chosen integration result object.
 
         Returns:
-            A pd.DataFrame containing the integration data as rows.
+            A list containing the ODE integration data for each step.
         """
+        return self.get_result_by_id(result_id=result_id)
 
-        result = self.get_result_by_id(result_id=result_id)
-
-        model_metadata = result[ResultKeys.MODEL_METADATA]
-
-        dim_names = model_metadata[ModelMetadataKeys.DIM_NAMES]
-
-        variable_names = model_metadata[ModelMetadataKeys.VARIABLE_NAMES]
-
-        result_copy = copy.deepcopy(result[ResultKeys.RESULT_DATA])
-
-        if not dim_names:
-            dim_names = initialize_dim_names(variable_names, result_copy[0])
-
-        for i, res in enumerate(result_copy):
-            result_copy[i] = convert_to_dict(res,
-                                             model_metadata=model_metadata,
-                                             dim_names=dim_names)
-
-        return pd.DataFrame(result_copy)
-
-    def return_metrics(self, result_id: Text) -> pd.DataFrame:
+    def return_metrics(self, result_id: Text) -> List:
         """
-        Construct a pd.DataFrame out of the result data of a previous integration result.
+         Return metrics data of a previous integration result.
 
         Args:
             result_id: ID of the chosen integration result object.
 
         Returns:
-            A pd.DataFrame containing the metric data of the result with ID result_id as rows.
+            A list of the metric data for each step of the result with ID result_id.
         """
-
-        result = self.get_result_by_id(result_id=result_id)
-
-        return pd.DataFrame(result[ResultKeys.METRICS])
+        raise NotImplementedError
 
     def save_result(self, result: List, output_dir):
         """
@@ -384,5 +334,6 @@ class Integrator:
             output_dir: Target directory to save the result to.
 
         """
-        out_dir = os.path.join(self.base_output_dir, output_dir)
-        write_result_to_disk(result=result, out_dir=out_dir, **self.csv_io_args)
+        raise NotImplementedError
+        # out_dir = os.path.join(self.base_output_dir, output_dir)
+        # write_result_to_disk(result=result, out_dir=out_dir)

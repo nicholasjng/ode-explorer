@@ -3,7 +3,7 @@ from typing import Dict, Text, Any, Callable, Union
 import jax.numpy as jnp
 
 from ode_explorer.models import BaseModel
-from ode_explorer.types import ModelState
+from ode_explorer.types import State
 
 
 class Metric:
@@ -24,8 +24,8 @@ class Metric:
 
     def __call__(self,
                  i: int,
-                 state: ModelState,
-                 updated_state: ModelState,
+                 state: State,
+                 new_state: State,
                  model: BaseModel,
                  local_vars: Dict[Text, Any]) -> Any:
         raise NotImplementedError
@@ -57,8 +57,8 @@ class DistanceToSolution(Metric):
 
     def __call__(self,
                  i: int,
-                 state: ModelState,
-                 updated_state: ModelState,
+                 state: State,
+                 new_state: State,
                  model: BaseModel,
                  local_vars: Dict[Text, Any]) -> Any:
         """
@@ -67,7 +67,7 @@ class DistanceToSolution(Metric):
         Args:
             i: Current iteration number.
             state: Previous ODE model state.
-            updated_state: New calculated ODE model state.
+            new_state: New calculated ODE model state.
             model: ODE model that is being integrated.
             local_vars: Handle for locals() dict object.
 
@@ -75,7 +75,7 @@ class DistanceToSolution(Metric):
             A scalar, the norm difference between the calculated state and the theoretical solution.
 
         """
-        t, y = updated_state
+        t, y = new_state
 
         y_pred = self.solution(t)
 

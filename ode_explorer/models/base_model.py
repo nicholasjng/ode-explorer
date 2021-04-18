@@ -13,9 +13,6 @@ class BaseModel:
         """
         raise NotImplementedError
 
-    def get_metadata(self):
-        raise NotImplementedError
-
     def __call__(self, *args, **kwargs):
         """
         BaseModel call operator. Overload this to use your model with builtin step functions.

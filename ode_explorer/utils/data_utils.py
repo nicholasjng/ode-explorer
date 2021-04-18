@@ -1,8 +1,6 @@
 import os
 from typing import List, Dict, Text, Any
 
-import pandas as pd
-
 from ode_explorer.constants import ModelMetadataKeys
 from ode_explorer.types import ModelState
 from ode_explorer.utils.helpers import is_scalar

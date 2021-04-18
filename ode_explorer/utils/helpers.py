@@ -1,27 +1,7 @@
 import inspect
-import jax.numpy as jnp
 from typing import Callable, List, Text
 
-from ode_explorer.defaults import standard_rhs, hamiltonian_rhs
-
-__all__ = ["is_scalar", "infer_variable_names", "infer_separability"]
-
-
-def is_scalar(y):
-    """
-    Infer whether an ODE is scalar.
-
-    Args:
-        y: State vector.
-
-    Returns:
-        A boolean, True if the ODE state vector is scalar and False otherwise.
-    """
-
-    if isinstance(y, jnp.ndarray):
-        return y.size == 1
-    else:
-        return not hasattr(y, "__len__")
+__all__ = ["infer_variable_names", "infer_separability"]
 
 
 def infer_variable_names(rhs: Callable) -> List[Text]:
@@ -34,7 +14,6 @@ def infer_variable_names(rhs: Callable) -> List[Text]:
     Returns:
         A list containing the ODE variable names.
     """
-
     ode_spec = inspect.getfullargspec(func=rhs)
 
     args = ode_spec.args
@@ -43,16 +22,18 @@ def infer_variable_names(rhs: Callable) -> List[Text]:
 
     # check if the function spec is either of the standard ones
     # if true, return them
-    if set(standard_rhs).issubset(arg_set):
-        return standard_rhs
-    elif set(hamiltonian_rhs).issubset(arg_set):
-        return hamiltonian_rhs
+    if {"t", "y"}.issubset(arg_set):
+        return ["t", "y"]
+    elif {"t", "q", "p"}.issubset(arg_set):
+        return ["t", "q", "p"]
     else:
-        # try to infer the variable names as those without defaults
-        num_defaults = len(ode_spec.defaults)
+        # try to infer the variable names as the positional arguments
+        num_pos = len(ode_spec.defaults)
 
-        if num_args >= num_defaults + 2:
-            return args[:-num_defaults]
+        if num_args >= num_pos + 2:
+            return args[:-num_pos]
+        else:
+            raise ValueError("Incompatible function signature for ODE integration.")
 
 
 def infer_separability(q_derivative: Callable, p_derivative: Callable) -> bool:

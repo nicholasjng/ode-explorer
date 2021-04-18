@@ -7,6 +7,7 @@ from ode_explorer.models import messages
 from ode_explorer.utils.helpers import infer_variable_names, infer_separability
 from ode_explorer.utils.import_utils import import_func_from_module
 
+
 class HamiltonianSystem(BaseModel):
     """
     Hamiltonian system base class. Use this with special step functions

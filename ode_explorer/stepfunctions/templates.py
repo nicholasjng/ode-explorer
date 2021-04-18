@@ -190,9 +190,6 @@ class MultiStepMethod:
     def _get_shape(self, y: jnp.array):
         return (self.num_previous,) if is_scalar(y) else (self.num_previous, len(y))
 
-    def _increment_cache_idx(self):
-        self._cache_idx += 1
-
     def reset(self):
         """
         Resets the step function so that next time the multi-step method is called,
@@ -240,11 +237,11 @@ class MultiStepMethod:
             state = startup_state
 
         self.ready = True
-        self._increment_cache_idx()
+        self._cache_idx += 1
 
     def _get_cached_state(self):
         idx = self._cache_idx
-        self._increment_cache_idx()
+        self._cache_idx += 1
         return self.make_new_state(t=self.t_cache[idx], y=self.y_cache[idx])
 
     def forward(self,

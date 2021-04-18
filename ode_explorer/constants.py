@@ -1,8 +1,6 @@
 class ResultKeys:
     RESULT_DATA = "result_data"
-    METRICS = "metrics"
     CONFIG = "config"
-    MODEL_METADATA = "model_metadata"
 
 
 class ConfigKeys:
@@ -12,10 +10,9 @@ class ConfigKeys:
     STEP_SIZE = "h"
     METRICS = "metrics"
     CALLBACKS = "callbacks"
-
-
-TIMESTAMP = "timestamp"
-RESULT_ID = "result_id"
+    TIMESTAMP = "timestamp"
+    ID = "result_id"
+    LOOP_TYPE = "loop_type"
 
 
 class ModelMetadataKeys:

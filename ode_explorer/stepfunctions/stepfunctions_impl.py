@@ -1,9 +1,9 @@
-from jax import lax
 import jax.numpy as jnp
-# from scipy.optimize import root, root_scalar
+from jax import lax
 
 from ode_explorer.models import ODEModel, HamiltonianSystem
-from ode_explorer.types import ModelState
+
+# from scipy.optimize import root, root_scalar
 
 __all__ = ["forward_euler_step",
            "heun_step",
@@ -15,18 +15,17 @@ __all__ = ["forward_euler_step",
            "euler_b_step"]
 
 
-def forward_euler_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> jnp.array:
+def forward_euler_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array):
     return y + h * model(t, y)
 
 
-def heun_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> jnp.array:
-
+def heun_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array):
     k1 = h * model(t, y)
     k2 = h * model(t + h, y + h * k1)
     return y + 0.5 * (k1 + k2)
 
 
-def rk4_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> jnp.array:
+def rk4_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array):
     # notation follows that in
     # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods
     hs = 0.5 * h
@@ -39,8 +38,7 @@ def rk4_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> jnp.a
     return y + 1. / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
 
-def dopri45_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> ModelState:
-
+def dopri45_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array):
     # initialize k-buffer for intermediate values
     k = jnp.zeros((7, y.shape[0]), y.dtype).at[0].set(model(t, y))
 
@@ -55,7 +53,6 @@ def dopri45_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> M
         [35 / 384, 0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84, 0]
     ])
     gamma1 = jnp.array([35 / 384, 0, 500 / 1113, 125 / 192, -2187 / 6784, 11 / 84, 0])
-    # First same as last (FSAL) rule
     gamma2 = jnp.array([5179 / 57600, 0.0, 7571 / 16695, 393 / 640, -92097 / 339200, 187 / 2100, 1 / 40])
 
     def body_fun(i, k_buf):
@@ -111,14 +108,14 @@ def dopri45_step(model: ODEModel, t: jnp.array, y: jnp.array, h: jnp.array) -> M
 #     return y_new
 
 
-def euler_a_step(hamiltonian: HamiltonianSystem, t: jnp.array, q: jnp.array, p: jnp.array, h: jnp.array) -> ModelState:
+def euler_a_step(hamiltonian: HamiltonianSystem, t: jnp.array, q: jnp.array, p: jnp.array, h: jnp.array):
     q_new = q + h * hamiltonian.p_derivative(t, p)
     p_new = p - h * hamiltonian.q_derivative(t, q_new)
 
     return q_new, p_new
 
 
-def euler_b_step(hamiltonian: HamiltonianSystem, t: jnp.array, q: jnp.array, p: jnp.array, h: jnp.array) -> ModelState:
+def euler_b_step(hamiltonian: HamiltonianSystem, t: jnp.array, q: jnp.array, p: jnp.array, h: jnp.array):
     p_new = p - h * hamiltonian.q_derivative(t, q)
     q_new = q + h * hamiltonian.p_derivative(t, p_new)
 

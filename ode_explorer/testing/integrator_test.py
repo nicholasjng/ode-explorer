@@ -53,7 +53,7 @@ def main():
                                        progress_bar=True,
                                        metrics=[DistanceToSolution(solution=sol, name="l2_distance")])
 
-            metrics = integrator.return_metrics(run_id="latest")
+            # metrics = integrator.return_metrics(result_id="latest")
             #
             # print(metrics.describe())
 

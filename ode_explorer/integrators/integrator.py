@@ -140,6 +140,7 @@ class Integrator:
                                              model=model,
                                              initial_state=initial_state,
                                              progress_bar=progress_bar,
+                                             end=end,
                                              **loop_kwargs)
 
         logger.info("Finished integration.")
@@ -164,7 +165,6 @@ class Integrator:
                         end: float = None,
                         h: float = None,
                         max_steps: int = None,
-                        reset: bool = False,
                         verbosity: int = logging.INFO,
                         output_dir: Text = None,
                         logfile: Text = None,
@@ -181,7 +181,6 @@ class Integrator:
             end: Target end time for ODE solving. Equals the time value of the last step.
             h: Constant step size for integration.
             max_steps: Maximum allowed steps during the integration.
-            reset: Bool, whether to reset the integrator (this deletes all previous results).
             verbosity: Logging verbosity, default logging.INFO.
             output_dir: Output directory. If specified,saves result data and info into this directory.
             logfile: Log file. If specified, writes all logs of the integration into this file.
@@ -200,7 +199,6 @@ class Integrator:
                                end=end,
                                h=h,
                                max_steps=max_steps,
-                               reset=reset,
                                verbosity=verbosity,
                                output_dir=output_dir,
                                logfile=logfile,
@@ -217,7 +215,6 @@ class Integrator:
                              end: float,
                              initial_h: float = None,
                              max_steps: int = None,
-                             reset: bool = False,
                              verbosity: int = logging.INFO,
                              output_dir: Text = None,
                              logfile: Text = None,
@@ -235,7 +232,6 @@ class Integrator:
             end: Target end time for ODE solving. Equals the time value of the last step.
             initial_h: Initial step size for integration.
             max_steps: Maximum allowed steps during the integration.
-            reset: Bool, whether to reset the integrator (this deletes all previous results).
             verbosity: Logging verbosity, default logging.INFO.
             output_dir: Output directory. If specified,saves result data and info into this directory.
             logfile: Log file. If specified, writes all logs of the integration into this file.
@@ -243,7 +239,6 @@ class Integrator:
             callbacks: List of callbacks to execute after each step.
             metrics: List of metrics to calculate after each step.
         """
-        # empty lists in case nothing was supplied
         callbacks = callbacks or []
         metrics = metrics or []
 
@@ -254,7 +249,6 @@ class Integrator:
                                end=end,
                                h=initial_h,
                                max_steps=max_steps,
-                               reset=reset,
                                verbosity=verbosity,
                                output_dir=output_dir,
                                logfile=logfile,
